@@ -58,10 +58,15 @@ final class Login {
 			return;
 		}
 
-		// Never, in any mode once configured: XML-RPC authentication and
-		// Application Passwords (headless clients use Faable M2M tokens).
+		// Never, in any mode once configured: XML-RPC authentication. And no
+		// Application Passwords (headless clients use Faable M2M tokens),
+		// except for the local users the site lists on purpose
+		// (FAABLE_AUTH_APP_PASSWORD_USERS): a front-end that already calls the
+		// REST API with one keeps working while it moves to M2M.
 		add_filter( 'xmlrpc_enabled', '__return_false', 99 );
-		add_filter( 'wp_is_application_passwords_available', '__return_false', 99 );
+		$app_password_users = Config::app_password_users();
+		add_filter( 'wp_is_application_passwords_available', $app_password_users ? '__return_true' : '__return_false', 99 );
+		add_filter( 'wp_is_application_passwords_available_for_user', array( __CLASS__, 'app_passwords_for_user' ), 99, 2 );
 
 		add_action( 'login_form', array( __CLASS__, 'render_button_in_form' ) );
 		add_filter( 'logout_redirect', array( __CLASS__, 'logout_redirect' ), 99, 3 );
@@ -73,7 +78,9 @@ final class Login {
 		// is called from (wp-login.php, a shop's account form, a plugin).
 		remove_filter( 'authenticate', 'wp_authenticate_username_password', 20 );
 		remove_filter( 'authenticate', 'wp_authenticate_email_password', 20 );
-		remove_filter( 'authenticate', 'wp_authenticate_application_password', 20 );
+		if ( ! $app_password_users ) {
+			remove_filter( 'authenticate', 'wp_authenticate_application_password', 20 );
+		}
 		add_filter( 'authenticate', array( __CLASS__, 'refuse_passwords' ), 99, 3 );
 		add_filter( 'allow_password_reset', '__return_false', 99 );
 		add_filter( 'show_password_fields', '__return_false', 99 );
@@ -430,6 +437,28 @@ final class Login {
 	}
 
 	/**
+	 * A local user listed in FAABLE_AUTH_APP_PASSWORD_USERS that has never
+	 * signed in with Faable (once linked, Faable is its only way in).
+	 *
+	 * @param \WP_User $user User.
+	 */
+	public static function is_local_service_user( \WP_User $user ): bool {
+		return $user->ID > 0
+			&& in_array( strtolower( $user->user_login ), Config::app_password_users(), true )
+			&& '' === (string) get_user_meta( $user->ID, self::META_SUB, true );
+	}
+
+	/**
+	 * `wp_is_application_passwords_available_for_user`: only the listed local users.
+	 *
+	 * @param bool     $available Available so far.
+	 * @param \WP_User $user      User.
+	 */
+	public static function app_passwords_for_user( $available, $user ) {
+		return $available && $user instanceof \WP_User && self::is_local_service_user( $user );
+	}
+
+	/**
 	 * `authenticate` filter for Faable-only mode.
 	 *
 	 * @param mixed  $user     Result so far.
@@ -437,6 +466,11 @@ final class Login {
 	 * @param string $password Password.
 	 */
 	public static function refuse_passwords( $user, $username, $password ) {
+		// An Application Password of a listed local user, checked by core
+		// (REST API requests only) at priority 20: the one password that passes.
+		if ( $user instanceof \WP_User && self::is_local_service_user( $user ) && did_action( 'application_password_did_authenticate' ) ) {
+			return $user;
+		}
 		if ( '' !== (string) $username || '' !== (string) $password ) {
 			return new \WP_Error( 'faable_auth_only', __( 'This site signs in with Faable only.', 'faable-auth' ) );
 		}

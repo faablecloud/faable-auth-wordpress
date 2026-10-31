@@ -20,6 +20,10 @@
  *   FAABLE_AUTH_REST_USER      WordPress login the M2M requests act as.
  *   FAABLE_AUTH_REST_CLIENTS   Optional. Comma-separated client ids allowed (empty = any client of the tenant).
  *   FAABLE_AUTH_REST_SCOPE     Optional. A scope/permission every M2M token must carry.
+ *   FAABLE_AUTH_APP_PASSWORD_USERS  Optional. Comma-separated logins of LOCAL
+ *                              WordPress users (never signed in with Faable)
+ *                              that keep Application Passwords for the REST
+ *                              API: a front-end that already calls it with one.
  *
  * Managed mode (FAABLE_AUTH_MANAGED, a constant the Faable hosting defines
  * when it loads the plugin as a must-use plugin from its image): the site's
@@ -54,6 +58,7 @@ final class Config {
 		'FAABLE_AUTH_REST_USER'     => 'rest_user',
 		'FAABLE_AUTH_REST_CLIENTS'  => 'rest_clients',
 		'FAABLE_AUTH_REST_SCOPE'    => 'rest_scope',
+		'FAABLE_AUTH_APP_PASSWORD_USERS' => 'app_password_users',
 	);
 
 	/** The connection values a managed site only takes from env/constants. */
@@ -231,6 +236,14 @@ final class Config {
 	 * dashboard's Faable Auth home.
 	 */
 	public static function manage_url(): string {
+		$tenant = self::tenant_url();
+		return '' !== $tenant ? $tenant : self::DASHBOARD_URL . '/auth';
+	}
+
+	/**
+	 * The tenant's page in the dashboard, or '' when project or tenant are unknown.
+	 */
+	public static function tenant_url(): string {
 		$o       = self::is_managed() ? array() : self::options();
 		$project = self::external( 'FAABLE_AUTH_PROJECT_ID' ) ?? (string) ( $o['project_id'] ?? '' );
 		$account = self::external( 'FAABLE_AUTH_ACCOUNT_ID' ) ?? (string) ( $o['account_id'] ?? '' );
@@ -239,7 +252,31 @@ final class Config {
 		if ( preg_match( '/^project_[a-f0-9]{24}$/', $project ) && preg_match( '/^account_[a-f0-9]{24}$/', $account ) ) {
 			return self::DASHBOARD_URL . '/auth/' . $project . '/account/' . $account;
 		}
-		return self::DASHBOARD_URL . '/auth';
+		return '';
+	}
+
+	/**
+	 * A tenant user's page in the dashboard, or '' (unknown tenant, or a
+	 * subject that is not a Faable Auth user id).
+	 *
+	 * @param string $sub The user's `sub` in the tenant.
+	 */
+	public static function user_url( string $sub ): string {
+		$tenant = self::tenant_url();
+		if ( '' === $tenant || ! preg_match( '/^user_[A-Za-z0-9]+$/', $sub ) ) {
+			return '';
+		}
+		return $tenant . '/user/' . $sub;
+	}
+
+	/**
+	 * Logins (lowercase) of the local users that keep Application Passwords.
+	 *
+	 * @return string[]
+	 */
+	public static function app_password_users(): array {
+		$list = array_map( 'trim', explode( ',', strtolower( self::get( 'FAABLE_AUTH_APP_PASSWORD_USERS' ) ) ) );
+		return array_values( array_filter( $list, static fn( $l ) => '' !== $l ) );
 	}
 
 	/**

@@ -45,6 +45,87 @@ final class Admin {
 		add_action( 'admin_notices', array( __CLASS__, 'notices' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( FAABLE_AUTH_FILE ), array( __CLASS__, 'action_links' ) );
 		add_filter( 'plugin_row_meta', array( __CLASS__, 'row_meta' ), 10, 2 );
+		add_action( 'show_user_profile', array( __CLASS__, 'user_profile' ), 1 );
+		add_action( 'edit_user_profile', array( __CLASS__, 'user_profile' ), 1 );
+		add_filter( 'manage_users_columns', array( __CLASS__, 'users_columns' ) );
+		add_filter( 'manage_users_custom_column', array( __CLASS__, 'users_column' ), 10, 3 );
+	}
+
+	/**
+	 * How a WordPress user signs in: 'faable' (linked to a tenant user),
+	 * 'service' (a listed local user with Application Passwords) or 'local'.
+	 *
+	 * @param \WP_User $user User.
+	 */
+	public static function sign_in_kind( \WP_User $user ): string {
+		if ( '' !== (string) get_user_meta( $user->ID, Login::META_SUB, true ) ) {
+			return 'faable';
+		}
+		return Login::is_local_service_user( $user ) ? 'service' : 'local';
+	}
+
+	/**
+	 * "Faable Auth" section of a user's profile.
+	 *
+	 * @param \WP_User $user User being shown.
+	 */
+	public static function user_profile( $user ): void {
+		if ( ! ( $user instanceof \WP_User ) || ! Config::is_configured() ) {
+			return;
+		}
+		$kind = self::sign_in_kind( $user );
+		echo '<h2>' . esc_html__( 'Faable Auth', 'faable-auth' ) . '</h2><table class="form-table" role="presentation"><tr><th scope="row">' . esc_html__( 'Sign-in', 'faable-auth' ) . '</th><td>';
+		if ( 'faable' === $kind ) {
+			$sub = (string) get_user_meta( $user->ID, Login::META_SUB, true );
+			$url = current_user_can( self::CAP ) ? Config::user_url( $sub ) : '';
+			echo '<p><span class="faable-auth-managed-user" style="display:inline-flex;align-items:center;gap:6px;font-weight:600">' . Login::emblem() . esc_html__( 'Managed by Faable Auth', 'faable-auth' ) . '</span></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- emblem() is a fixed <img> built from our own file.
+			echo '<p class="description">' . esc_html__( 'This user signs in with Faable. Email, password and role are managed in Faable Auth: the role is synced from the tenant on every login.', 'faable-auth' ) . '</p>';
+			if ( '' !== $url ) {
+				echo '<p><a class="button" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Open in the Faable dashboard', 'faable-auth' ) . ' <span aria-hidden="true">↗</span></a></p>';
+			}
+		} elseif ( 'service' === $kind ) {
+			echo '<p><strong>' . esc_html__( 'Local service user', 'faable-auth' ) . '</strong></p>';
+			echo '<p class="description">' . esc_html__( 'Not a Faable Auth user: it cannot log in to wp-admin, but it can call the REST API with an Application Password (listed in Settings → Faable Auth).', 'faable-auth' ) . '</p>';
+		} else {
+			echo '<p>' . esc_html__( 'Not linked to Faable Auth yet.', 'faable-auth' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'Linked on this person\'s first Faable sign-in with the same, verified email; until then this account cannot log in.', 'faable-auth' ) . '</p>';
+		}
+		echo '</td></tr></table>';
+	}
+
+	/**
+	 * Users list: a "Sign-in" column.
+	 *
+	 * @param array $columns Columns.
+	 */
+	public static function users_columns( $columns ) {
+		if ( Config::is_configured() ) {
+			$columns['faable_auth'] = esc_html__( 'Sign-in', 'faable-auth' );
+		}
+		return $columns;
+	}
+
+	/**
+	 * Users list cell.
+	 *
+	 * @param string $output  Output so far.
+	 * @param string $column  Column.
+	 * @param int    $user_id User.
+	 */
+	public static function users_column( $output, $column, $user_id ) {
+		if ( 'faable_auth' !== $column ) {
+			return $output;
+		}
+		$user = get_userdata( (int) $user_id );
+		if ( ! $user ) {
+			return $output;
+		}
+		$labels = array(
+			'faable'  => __( 'Faable Auth', 'faable-auth' ),
+			'service' => __( 'Service (Application Password)', 'faable-auth' ),
+			'local'   => __( 'Not linked', 'faable-auth' ),
+		);
+		return esc_html( $labels[ self::sign_in_kind( $user ) ] );
 	}
 
 	/**
@@ -224,6 +305,7 @@ final class Admin {
 			'FAABLE_AUTH_REST_USER'     => 'rest_user',
 			'FAABLE_AUTH_REST_CLIENTS'  => 'rest_clients',
 			'FAABLE_AUTH_REST_SCOPE'    => 'rest_scope',
+			'FAABLE_AUTH_APP_PASSWORD_USERS' => 'app_password_users',
 		);
 		$managed = Config::is_managed();
 		foreach ( $fields as $const => $key ) {
@@ -475,6 +557,7 @@ final class Admin {
 					self::row( 'FAABLE_AUTH_REST_USER', 'rest_user', __( 'Acts as user (login)', 'faable-auth' ), __( 'Requests get this WordPress user\'s capabilities. Create a dedicated user with the least role that works.', 'faable-auth' ) );
 					self::row( 'FAABLE_AUTH_REST_CLIENTS', 'rest_clients', __( 'Allowed client IDs', 'faable-auth' ), __( 'Comma separated. Empty: any client of the tenant.', 'faable-auth' ) );
 					self::row( 'FAABLE_AUTH_REST_SCOPE', 'rest_scope', __( 'Required scope (optional)', 'faable-auth' ) );
+					self::row( 'FAABLE_AUTH_APP_PASSWORD_USERS', 'app_password_users', __( 'Local users with Application Passwords', 'faable-auth' ), __( 'Comma-separated logins of local WordPress users (not Faable users) that keep calling the REST API with an Application Password, e.g. an existing front-end. They cannot log in to wp-admin. Empty: no Application Passwords at all.', 'faable-auth' ) );
 					?>
 				</table>
 

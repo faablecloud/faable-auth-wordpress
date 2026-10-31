@@ -275,6 +275,33 @@ check( 'managed: Faable-only login', str_contains( $r['body'], 'Log in with Faab
 check( 'the login button carries the Faable emblem', (bool) preg_match( '/<a [^>]*faable-auth-button[^>]*><img class="faable-auth-emblem" src="data:image\/png;base64,[A-Za-z0-9+\/=]{100,}"/', $r['body'] ) );
 $hops = faable_login( new Browser(), 'alice' );
 check( 'managed: alice signs in through the platform client', 302 === ( $hops[2]['status'] ?? 0 ) && str_contains( $hops[2]['location'] ?? '', '/wp-admin' ), json_encode( array_map( static fn( $h ) => $h['status'] . ' ' . $h['location'], $hops ) ) );
+$alice_id = trim( wp_cli( 'user get alice --field=ID' ) );
+$r        = $e->get( WP . '/wp-admin/user-edit.php?user_id=' . $alice_id );
+check( 'profile: alice is Managed by Faable Auth', str_contains( $r['body'], 'Managed by Faable Auth' ) );
+check( '... with her page in the Faable dashboard', str_contains( $r['body'], 'href="https://dashboard.faable.com/auth/project_6a8ebd6160324d4631c12edc/account/account_6aab075db8185a5d3bd64caf/user/user_alice"' ) );
+
+echo "\nLocal users with Application Passwords\n";
+wp_cli( 'user create svc svc@example.com --role=editor' );
+wp_cli( "config set FAABLE_AUTH_APP_PASSWORD_USERS 'svc,alice'" );
+sleep( 3 );
+$svc_pw   = wp_cli( 'user application-password create svc front --porcelain' );
+$alice_pw = wp_cli( 'user application-password create alice front --porcelain' );
+$rest     = static fn( string $u, string $p ) => ( new Browser() )->get( WP . '/wp-json/wp/v2/users/me?context=edit', array( 'Authorization: Basic ' . base64_encode( "$u:$p" ) ) );
+$r        = $rest( 'svc', $svc_pw );
+check( 'listed local user: the REST API accepts its Application Password', 200 === $r['status'] && str_contains( $r['body'], '"username":"svc"' ), $r['status'] . ' ' . substr( $r['body'], 0, 200 ) . ' pw=' . strlen( $svc_pw ) );
+$r = $rest( 'alice', $alice_pw );
+check( 'listed but a Faable user: refused', 401 === $r['status'] || ! str_contains( $r['body'], '"username":"alice"' ), $r['status'] . ' ' . substr( $r['body'], 0, 200 ) );
+$r = ( new Browser() )->post( WP . '/wp-login.php', array( 'log' => 'svc', 'pwd' => $svc_pw, 'testcookie' => '1', 'redirect_to' => WP . '/wp-admin/' ) );
+check( 'the Application Password does not log in to wp-admin', ! ( 302 === $r['status'] && str_contains( $r['location'], '/wp-admin' ) ), $r['status'] . ' ' . $r['location'] );
+$r = $e->get( WP . '/wp-admin/user-edit.php?user_id=' . trim( wp_cli( 'user get svc --field=ID' ) ) );
+check( 'profile: svc is a Local service user', str_contains( $r['body'], 'Local service user' ) && ! str_contains( $r['body'], 'Managed by Faable Auth' ) );
+$r = $e->get( WP . '/wp-admin/users.php' );
+check( 'users list: Sign-in column', str_contains( $r['body'], 'Service (Application Password)' ) && str_contains( $r['body'], '>Faable Auth<' ) );
+wp_cli( 'config delete FAABLE_AUTH_APP_PASSWORD_USERS' );
+sleep( 3 );
+$r = $rest( 'svc', $svc_pw );
+check( 'not listed: the same Application Password is refused', 401 === $r['status'], $r['status'] . ' ' . substr( $r['body'], 0, 200 ) );
+
 // Managed but the platform's client id missing: never fall back to the option.
 wp_cli( 'config delete FAABLE_AUTH_CLIENT_ID' );
 sleep( 3 );
