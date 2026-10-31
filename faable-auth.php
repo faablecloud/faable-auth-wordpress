@@ -3,7 +3,7 @@
  * Plugin Name:       Faable Auth
  * Plugin URI:        https://github.com/faablecloud/faable-auth-wordpress
  * Description:       Sign in to WordPress with Faable Auth (OpenID Connect). Replaces the password login, syncs roles on every login and accepts Faable machine-to-machine tokens on the REST API.
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Faable
@@ -23,13 +23,13 @@ if ( defined( 'FAABLE_AUTH_VERSION' ) ) {
 	return;
 }
 
-define( 'FAABLE_AUTH_VERSION', '1.0.0' );
+define( 'FAABLE_AUTH_VERSION', '1.1.0' );
 define( 'FAABLE_AUTH_FILE', __FILE__ );
 // 'github' = this build updates itself from GitHub releases (src/Updater.php).
 // The wordpress.org build (bin/build-zip.sh --wporg) rewrites it to 'wporg'.
 define( 'FAABLE_AUTH_DISTRIBUTION', 'github' );
 
-foreach ( array( 'Jwt', 'Pkce', 'RoleMapper', 'BreakGlass', 'Crypto', 'Config', 'Oidc', 'LoginLink', 'Login', 'UserSync', 'Rest', 'Admin' ) as $faable_auth_class ) {
+foreach ( array( 'Jwt', 'Pkce', 'RoleMapper', 'BreakGlass', 'Crypto', 'Config', 'Oidc', 'LoginLink', 'Login', 'UserSync', 'UserEnumeration', 'Rest', 'Admin' ) as $faable_auth_class ) {
 	require_once __DIR__ . '/src/' . $faable_auth_class . '.php';
 }
 unset( $faable_auth_class );
@@ -41,6 +41,7 @@ add_action(
 	static function () {
 		FaableAuth\Login::init();
 		FaableAuth\UserSync::init();
+		FaableAuth\UserEnumeration::init();
 		FaableAuth\Rest::init();
 		if ( is_admin() ) {
 			FaableAuth\Admin::init();

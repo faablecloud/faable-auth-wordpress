@@ -292,6 +292,16 @@ $r        = $rest( 'svc', $svc_pw );
 check( 'listed local user: the REST API accepts its Application Password', 200 === $r['status'] && str_contains( $r['body'], '"username":"svc"' ), $r['status'] . ' ' . substr( $r['body'], 0, 200 ) . ' pw=' . strlen( $svc_pw ) );
 $r = $rest( 'alice', $alice_pw );
 check( 'listed but a Faable user: refused', 401 === $r['status'] || ! str_contains( $r['body'], '"username":"alice"' ), $r['status'] . ' ' . substr( $r['body'], 0, 200 ) );
+// The REST API does not list users to anonymous visitors (UserEnumeration).
+foreach ( array( '/wp-json/wp/v2/users', '/?rest_route=/wp/v2/users', '/wp-json/wp/v2/Users', '/wp-json/wp/v2/users/1', '/wp-json/wp/v2/users/' ) as $u ) {
+	$r = ( new Browser() )->get( WP . $u );
+	check( "anonymous $u: 401", 401 === $r['status'] && ! str_contains( $r['body'], '"slug"' ), $r['status'] . ' ' . substr( $r['body'], 0, 120 ) );
+}
+$r = ( new Browser() )->get( WP . '/wp-json/wp/v2/users', array( 'Authorization: Basic ' . base64_encode( "svc:$svc_pw" ) ) );
+check( 'with an Application Password: the users list as WordPress has it', 200 === $r['status'] && str_contains( $r['body'], '"slug"' ), $r['status'] . ' ' . substr( $r['body'], 0, 120 ) );
+$r = ( new Browser() )->get( WP . '/wp-json/wp/v2/posts' );
+check( 'anonymous posts: still public', 200 === $r['status'], (string) $r['status'] );
+
 $r = ( new Browser() )->post( WP . '/wp-login.php', array( 'log' => 'svc', 'pwd' => $svc_pw, 'testcookie' => '1', 'redirect_to' => WP . '/wp-admin/' ) );
 check( 'the Application Password does not log in to wp-admin', ! ( 302 === $r['status'] && str_contains( $r['location'], '/wp-admin' ) ), $r['status'] . ' ' . $r['location'] );
 $r = $e->get( WP . '/wp-admin/user-edit.php?user_id=' . trim( wp_cli( 'user get svc --field=ID' ) ) );
@@ -342,6 +352,9 @@ $mg = idp( '/test/mgmt' );
 check( 'an email the tenant has: linked, not created again', 'user_bob' === wp_cli( 'user meta get bob2 faable_auth_sub' ) && ! in_array( 'bob@example.com', array_column( $mg['users'], 'email' ), true ) );
 check( '... and given the role', in_array( 'editor', $mg['grants']['user_bob'] ?? array(), true ) );
 
+// Two tenant roles named `editor`; dora holds the newer one too.
+idp( '/test/dup-role?name=editor' );
+idp( '/test/grant?sub=' . rawurlencode( $dora_sub ) . '&role=editor~2' );
 wp_cli( 'user delete dora --yes' );
 check( 'deleted in WordPress: its mapped roles go in Faable Auth, the user stays', array() === ( idp( '/test/mgmt' )['grants'][ $dora_sub ] ?? null ) && in_array( $dora_sub, array_column( idp( '/test/mgmt' )['users'], 'sub' ), true ) );
 

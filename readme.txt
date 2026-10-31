@@ -4,7 +4,7 @@ Tags: login, sso, openid connect, oidc, authentication
 Requires at least: 6.4
 Tested up to: 6.8
 Requires PHP: 8.1
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,15 +101,16 @@ Removing the plugin brings back the normal WordPress login. Users created by the
 
 == Changelog ==
 
-= Unreleased =
+= 1.1.0 =
 * Users added in WordPress are created in Faable Auth with their password and role; role changes and deletions follow.
-* The login button's emblem sits on a white disc.
+* The REST API no longer lists the site's users to anonymous visitors (`/wp/v2/users`); signed-in users and Application Passwords are unaffected. Filter: `faable_auth_restrict_rest_users`.
+* User sync handles a tenant with two roles of the same name.
 
 = 1.0.0 =
 * Managed mode for sites hosted on Faable: the connection comes from the environment.
 * Roles synced from Faable Auth; the user profile says "Managed by Faable Auth" and links to the user in the Faable dashboard.
 * Settings page with links to the tenant in the Faable dashboard and to the documentation.
-* Faable emblem on the login button.
+* Faable emblem on the login button, on a white disc.
 * Local service users can keep Application Passwords for the REST API.
 
 = 0.1.0 =

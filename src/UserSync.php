@@ -45,7 +45,12 @@ final class UserSync {
 	/** True while the plugin itself writes users (Faable login, its own sync). */
 	private static bool $quiet = false;
 
-	/** Role name => id of the tenant, per request. */
+	/**
+	 * Role name => ids of the tenant, per request. A list: nothing in Faable
+	 * Auth stops two roles from having the same name (31-10-2026, El Talentón
+	 * had two `administrator`), and removing only one of them left the user
+	 * an administrator.
+	 */
 	private static ?array $roles = null;
 
 	public static function init(): void {
@@ -173,9 +178,17 @@ final class UserSync {
 		$new  = array_filter( array( self::faable_role( (string) $role ) ) );
 		$drop = array_diff( $old, $new );
 		if ( $drop ) {
-			$ids = array_filter( array_map( static fn( $n ) => self::role_id( $oidc, $n, false ), $drop ), 'is_string' );
+			$ids = array();
+			foreach ( $drop as $name ) {
+				$found = self::role_ids( $oidc, $name );
+				if ( is_wp_error( $found ) ) {
+					self::fail( $user_id, $found );
+					return;
+				}
+				$ids = array_merge( $ids, $found );
+			}
 			if ( $ids ) {
-				$res = $oidc->management( 'DELETE', '/user/' . rawurlencode( $sub ) . '/roles', array( 'roles' => array_values( $ids ) ), self::WRITE_SCOPES );
+				$res = $oidc->management( 'DELETE', '/user/' . rawurlencode( $sub ) . '/roles', array( 'roles' => array_values( array_unique( $ids ) ) ), self::WRITE_SCOPES );
 				if ( is_wp_error( $res ) && 404 !== (int) $res->get_error_data() ) {
 					self::fail( $user_id, $res );
 					return;
@@ -207,9 +220,9 @@ final class UserSync {
 		$oidc = Oidc::configured();
 		$ids  = array();
 		foreach ( array_unique( array_keys( Config::role_map() ) ) as $name ) {
-			$id = self::role_id( $oidc, $name, false );
-			if ( is_string( $id ) ) {
-				$ids[] = $id;
+			$found = self::role_ids( $oidc, $name );
+			if ( is_array( $found ) ) {
+				$ids = array_merge( $ids, $found );
 			}
 		}
 		if ( $ids ) {
@@ -247,21 +260,13 @@ final class UserSync {
 	 * @return string|\WP_Error|null Null when missing and not created.
 	 */
 	private static function role_id( Oidc $oidc, string $name, bool $create ) {
-		$key = strtolower( $name );
-		if ( null === self::$roles ) {
-			$res = $oidc->management( 'GET', '/role?pageSize=200', null, self::WRITE_SCOPES );
-			if ( is_wp_error( $res ) ) {
-				return $res;
-			}
-			self::$roles = array();
-			foreach ( (array) ( $res['results'] ?? $res ) as $role ) {
-				if ( is_array( $role ) && isset( $role['id'], $role['name'] ) ) {
-					self::$roles[ strtolower( (string) $role['name'] ) ] = (string) $role['id'];
-				}
-			}
+		$key   = strtolower( $name );
+		$found = self::role_ids( $oidc, $name );
+		if ( is_wp_error( $found ) ) {
+			return $found;
 		}
-		if ( isset( self::$roles[ $key ] ) ) {
-			return self::$roles[ $key ];
+		if ( $found ) {
+			return $found[0];
 		}
 		if ( ! $create ) {
 			return null;
@@ -278,8 +283,32 @@ final class UserSync {
 		if ( is_wp_error( $res ) || empty( $res['id'] ) ) {
 			return is_wp_error( $res ) ? $res : new \WP_Error( 'faable_auth_role', __( 'Faable Auth did not create the role.', 'faable-auth' ) );
 		}
-		self::$roles[ $key ] = (string) $res['id'];
-		return self::$roles[ $key ];
+		self::$roles[ $key ] = array( (string) $res['id'] );
+		return self::$roles[ $key ][0];
+	}
+
+	/**
+	 * Every tenant role named `$name` (case-insensitive), oldest first.
+	 *
+	 * @param Oidc   $oidc Client.
+	 * @param string $name Role name.
+	 * @return string[]|\WP_Error
+	 */
+	private static function role_ids( Oidc $oidc, string $name ) {
+		if ( null === self::$roles ) {
+			$res = $oidc->management( 'GET', '/role?pageSize=200', null, self::WRITE_SCOPES );
+			if ( is_wp_error( $res ) ) {
+				return $res;
+			}
+			$all = array_filter( (array) ( $res['results'] ?? $res ), static fn( $r ) => is_array( $r ) && isset( $r['id'], $r['name'] ) );
+			// Ids are ObjectIds: their hex sorts by creation time.
+			usort( $all, static fn( $a, $b ) => strcmp( (string) $a['id'], (string) $b['id'] ) );
+			self::$roles = array();
+			foreach ( $all as $role ) {
+				self::$roles[ strtolower( (string) $role['name'] ) ][] = (string) $role['id'];
+			}
+		}
+		return self::$roles[ strtolower( $name ) ] ?? array();
 	}
 
 	/**

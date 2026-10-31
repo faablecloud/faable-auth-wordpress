@@ -201,6 +201,17 @@ switch ( true ) {
 
 	case '/test/mgmt' === $path:
 		json( mgmt() );
+	// A second role with an existing name (Faable Auth allows it), newer id.
+	case '/test/dup-role' === $path:
+		$m           = mgmt();
+		$m['dups'][] = $_GET['name'];
+		mgmt( $m );
+		json( array( 'ok' => true ) );
+	case '/test/grant' === $path:
+		$m = mgmt();
+		$m['grants'][ $_GET['sub'] ][] = $_GET['role'];
+		mgmt( $m );
+		json( array( 'ok' => true ) );
 	case '/test/read-only-client' === $path:
 		empty( $_GET['off'] ) ? touch( DIR . '/read_only_client' ) : @unlink( DIR . '/read_only_client' );
 		json( array( 'ok' => true ) );
@@ -242,7 +253,12 @@ switch ( true ) {
 		foreach ( USERS as $u ) {
 			$names = array_merge( $names, $u[2] );
 		}
-		json( array( 'results' => array_map( fn( $n ) => array( 'id' => 'role_' . $n, 'name' => $n ), array_values( array_unique( $names ) ) ) ) );
+		$list = array_map( fn( $n ) => array( 'id' => 'role_' . $n, 'name' => $n ), array_values( array_unique( $names ) ) );
+		foreach ( mgmt()['dups'] ?? array() as $n ) {
+			// Listed FIRST although newer: the plugin must not rely on the order.
+			array_unshift( $list, array( 'id' => 'role_' . $n . '~2', 'name' => $n ) );
+		}
+		json( array( 'results' => $list ) );
 
 	case '/role' === $path && 'POST' === $_SERVER['REQUEST_METHOD']:
 		need_scope( 'create:roles' );
