@@ -20,7 +20,7 @@ const DIR     = '/tmp/idp';
 const USERS = array(
 	'alice' => array( 'user_alice', 'alice@example.com', array( 'editor' ) ),
 	'bob'   => array( 'user_bob', 'bob@example.com', array( 'support' ) ),
-	'carol' => array( 'user_carol', 'carol@example.com', array( 'faable-project-member' ) ),
+	'carol' => array( 'user_carol', 'carol@example.com', array( 'faable-project-member' ) ), // unmapped: membership gives no role
 	'admin' => array( 'user_admin', 'admin@example.com', array( 'administrator' ) ),
 );
 const CLIENT_ID     = 'client_wp';

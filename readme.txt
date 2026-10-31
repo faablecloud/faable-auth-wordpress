@@ -16,7 +16,7 @@ Faable Auth makes your site an OpenID Connect client of your Faable Auth tenant:
 
 * **Sign in with Faable only.** wp-login.php shows a "Log in with Faable" button instead of the username and password form. Password resets, registration, XML-RPC authentication and Application Passwords are turned off.
 * **Accounts without local passwords.** Users are created on their first login, without a usable local password.
-* **Roles from Faable Auth, re-synced on every login.** Members of the Faable project are administrators. Other users get the WordPress role their Faable Auth role maps to (administrator, editor, author, contributor, subscriber by default; the map is configurable). A user without a mapped role gets no account and sees why.
+* **Roles from Faable Auth, re-synced on every login.** Users get the WordPress role their Faable Auth role maps to (administrator, editor, author, contributor, subscriber by default; the map is configurable). A user without a mapped role gets no account and sees why.
 * **Headless front-ends.** The REST API accepts Faable Auth machine-to-machine (client_credentials) access tokens instead of Basic Auth with an Application Password.
 * **Emergency access from day one** (see below).
 
@@ -46,9 +46,8 @@ If Faable Auth cannot be reached, nobody can log in. There are two ways in, and 
 
 * `FAABLE_AUTH_DOMAIN`: the tenant URL, e.g. `https://acme.auth.faable.link` (or its custom domain). It is the issuer of the tokens, without a trailing slash.
 * `FAABLE_AUTH_CLIENT_ID`, `FAABLE_AUTH_CLIENT_SECRET`: the site's OIDC client in that tenant.
-* `FAABLE_PROJECT_ID`: the Faable project the site belongs to.
 
-Optional: `FAABLE_AUTH_ROLE_MAP` (JSON or `faable_role = wp_role` lines), `FAABLE_AUTH_AUDIENCE` (an API whose ID tokens include roles), `FAABLE_AUTH_REST_AUDIENCE`, `FAABLE_AUTH_REST_USER`, `FAABLE_AUTH_REST_CLIENTS`, `FAABLE_AUTH_REST_SCOPE` (machine-to-machine REST), `FAABLE_AUTH_FEDERATED_LOGOUT`, `FAABLE_AUTH_MEMBER_ROLE`. Each can also be a PHP constant in `wp-config.php`. A value set this way wins over the settings page and shows there read-only.
+Optional: `FAABLE_AUTH_ROLE_MAP` (JSON or `faable_role = wp_role` lines), `FAABLE_AUTH_AUDIENCE` (an API whose ID tokens include roles), `FAABLE_AUTH_REST_AUDIENCE`, `FAABLE_AUTH_REST_USER`, `FAABLE_AUTH_REST_CLIENTS`, `FAABLE_AUTH_REST_SCOPE` (machine-to-machine REST), `FAABLE_AUTH_FEDERATED_LOGOUT`. Each can also be a PHP constant in `wp-config.php`. A value set this way wins over the settings page and shows there read-only.
 
 **Anywhere else**, go to Settings → Faable Auth and press **Connect with Faable**. You log in to Faable, pick the project and the Auth tenant, and the site comes back connected. If you cannot use that, create a web client in your tenant with this redirect URI and paste the domain, client ID and secret in the manual section:
 
@@ -60,7 +59,7 @@ Until the site is connected, the normal WordPress login stays on, so the adminis
 
 The roles of a user are read from the ID token's `roles` claim when the site requests an audience (`FAABLE_AUTH_AUDIENCE`) whose API includes roles in ID tokens. Otherwise the plugin reads them from your tenant's Management API (`GET /user/:id/roles`) with a client_credentials token limited to `read:rolemembers`, cached for its lifetime (about one machine-to-machine token a day). If roles cannot be read, the login is refused.
 
-**Project members.** Membership of a Faable project lives in the Faable platform, not in your tenant. In this version a project member is a tenant user with the role `faable-project-member` (change it with `FAABLE_AUTH_MEMBER_ROLE`), who becomes an administrator. Developers can decide membership with the `faable_auth_is_project_member` filter.
+Roles are managed in the project's Faable Auth tenant: being a member of the Faable project gives no role on the site.
 
 = Headless front-ends (REST API) =
 
@@ -70,7 +69,7 @@ Application Passwords are off: move each front-end from Basic Auth to a client_c
 
 = Developers =
 
-Filters: `faable_auth_wp_role`, `faable_auth_is_project_member`, `faable_auth_authorize_params`, `faable_auth_rest_user_id`. Actions: `faable_auth_user_created`, `faable_auth_user_synced`, `faable_auth_login_failed`, `faable_auth_login_link_used`.
+Filters: `faable_auth_wp_role`, `faable_auth_authorize_params`, `faable_auth_rest_user_id`. Actions: `faable_auth_user_created`, `faable_auth_user_synced`, `faable_auth_login_failed`, `faable_auth_login_link_used`.
 
 Multisite is not supported in this version.
 

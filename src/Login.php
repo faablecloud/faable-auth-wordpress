@@ -268,24 +268,6 @@ final class Login {
 	}
 
 	/**
-	 * Whether the user is a member of the Faable project the site belongs to.
-	 *
-	 * Membership lives in the Faable platform, not in the customer's tenant,
-	 * and the platform offers no way yet for a site to ask about it (see the
-	 * readme, "Project members"). Until it does, a project member is a tenant
-	 * user holding the reserved role (`faable-project-member` by default,
-	 * FAABLE_AUTH_MEMBER_ROLE to change it). The filter lets an integration
-	 * answer instead.
-	 *
-	 * @param array    $claims ID token claims.
-	 * @param string[] $roles  Faable Auth roles.
-	 */
-	public static function is_project_member( array $claims, array $roles ): bool {
-		$member = in_array( Config::member_role(), array_map( 'strtolower', $roles ), true );
-		return (bool) apply_filters( 'faable_auth_is_project_member', $member, $claims, $roles, Config::get( 'FAABLE_PROJECT_ID' ) );
-	}
-
-	/**
 	 * Find, link or create the WordPress user and sync its role.
 	 *
 	 * @param array    $claims ID token claims.
@@ -298,9 +280,8 @@ final class Login {
 		$email  = isset( $claims['email'] ) && is_string( $claims['email'] ) ? sanitize_email( $claims['email'] ) : '';
 		$verified = ! empty( $claims['email_verified'] );
 
-		$member  = self::is_project_member( $claims, $roles );
-		$wp_role = RoleMapper::resolve( $roles, $member, Config::role_map(), array_keys( wp_roles()->get_names() ) );
-		$wp_role = apply_filters( 'faable_auth_wp_role', $wp_role, $claims, $roles, $member );
+		$wp_role = RoleMapper::resolve( $roles, Config::role_map(), array_keys( wp_roles()->get_names() ) );
+		$wp_role = apply_filters( 'faable_auth_wp_role', $wp_role, $claims, $roles );
 
 		$user = self::find_linked( $sub, $iss );
 		if ( ! $user && '' !== $email && $verified ) {

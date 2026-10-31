@@ -2,10 +2,9 @@
 /**
  * Maps Faable Auth role names to one WordPress role. No WordPress dependency.
  *
- * Rules (owner's decision):
- *  - a member of the Faable project is an administrator;
- *  - any other user gets the WordPress role their Faable Auth roles map to,
- *    the most privileged one when several map;
+ * Rules (owner's decision): roles come only from the Faable Auth tenant.
+ *  - a user gets the WordPress role their Faable Auth roles map to, the most
+ *    privileged one when several map;
  *  - a user whose roles map to nothing gets no account.
  *
  * @package FaableAuth
@@ -89,15 +88,11 @@ final class RoleMapper {
 	 * Resolve the WordPress role.
 	 *
 	 * @param string[] $faable_roles      Role names from Faable Auth.
-	 * @param bool     $is_project_member Whether the user is a member of the Faable project.
 	 * @param array    $map               Faable role => WP role.
 	 * @param string[] $existing_wp_roles Roles that exist in this site (empty = do not check).
 	 * @return string|null The WP role, or null when the user must be refused.
 	 */
-	public static function resolve( array $faable_roles, bool $is_project_member, array $map, array $existing_wp_roles = array() ): ?string {
-		if ( $is_project_member ) {
-			return 'administrator';
-		}
+	public static function resolve( array $faable_roles, array $map, array $existing_wp_roles = array() ): ?string {
 		$candidates = array();
 		foreach ( $faable_roles as $name ) {
 			if ( ! is_string( $name ) ) {

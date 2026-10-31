@@ -11,7 +11,6 @@
  *                              also the token issuer: no trailing slash.
  *   FAABLE_AUTH_CLIENT_ID      OIDC client id of this site in that tenant.
  *   FAABLE_AUTH_CLIENT_SECRET  Its secret (confidential client).
- *   FAABLE_PROJECT_ID          The Faable project (project_…) the site belongs to.
  *   FAABLE_AUTH_AUDIENCE       Optional. An API identifier of the tenant with
  *                              "include roles in ID token" on: roles then come
  *                              in the ID token instead of a Management API call.
@@ -41,7 +40,6 @@ final class Config {
 		'FAABLE_AUTH_DOMAIN'        => 'domain',
 		'FAABLE_AUTH_CLIENT_ID'     => 'client_id',
 		'FAABLE_AUTH_CLIENT_SECRET' => 'client_secret',
-		'FAABLE_PROJECT_ID'         => 'project_id',
 		'FAABLE_AUTH_AUDIENCE'      => 'audience',
 		'FAABLE_AUTH_ROLE_MAP'      => 'role_map',
 		'FAABLE_AUTH_REST_AUDIENCE' => 'rest_audience',
@@ -187,15 +185,6 @@ final class Config {
 	 */
 	public static function role_map(): array {
 		return RoleMapper::parse( self::get( 'FAABLE_AUTH_ROLE_MAP' ) );
-	}
-
-	/**
-	 * The Faable Auth role that marks a member of the Faable project. See
-	 * Login::is_project_member() and the readme ("Project members").
-	 */
-	public static function member_role(): string {
-		$v = self::external( 'FAABLE_AUTH_MEMBER_ROLE' );
-		return strtolower( null !== $v ? trim( $v ) : 'faable-project-member' );
 	}
 
 	/**

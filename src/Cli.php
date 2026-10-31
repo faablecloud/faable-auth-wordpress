@@ -61,7 +61,6 @@ final class Cli {
 			array( 'key' => 'domain', 'value' => Config::domain(), 'source' => $src( 'FAABLE_AUTH_DOMAIN' ) ),
 			array( 'key' => 'client_id', 'value' => Config::get( 'FAABLE_AUTH_CLIENT_ID' ), 'source' => $src( 'FAABLE_AUTH_CLIENT_ID' ) ),
 			array( 'key' => 'client_secret', 'value' => '' !== Config::get( 'FAABLE_AUTH_CLIENT_SECRET' ) ? 'set' : ( Config::secret_unreadable() ? 'UNREADABLE (salts changed: reconnect)' : 'missing' ), 'source' => $src( 'FAABLE_AUTH_CLIENT_SECRET' ) ),
-			array( 'key' => 'project_id', 'value' => Config::get( 'FAABLE_PROJECT_ID' ), 'source' => $src( 'FAABLE_PROJECT_ID' ) ),
 			array( 'key' => 'redirect_uri', 'value' => Config::redirect_uri(), 'source' => '' ),
 			array( 'key' => 'rest_audience', 'value' => Config::get( 'FAABLE_AUTH_REST_AUDIENCE' ), 'source' => $src( 'FAABLE_AUTH_REST_AUDIENCE' ) ),
 		);

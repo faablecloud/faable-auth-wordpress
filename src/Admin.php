@@ -177,7 +177,6 @@ final class Admin {
 				'domain'            => $domain,
 				'client_id'         => $id,
 				'client_secret_enc' => Config::encrypt_secret( $secret ),
-				'project_id'        => sanitize_text_field( (string) ( $data['project_id'] ?? '' ) ),
 				'account_id'        => sanitize_text_field( (string) ( $data['account_id'] ?? '' ) ),
 				'source'            => 'connect',
 				'connected_at'      => time(),
@@ -198,7 +197,6 @@ final class Admin {
 		$fields = array(
 			'FAABLE_AUTH_DOMAIN'        => 'domain',
 			'FAABLE_AUTH_CLIENT_ID'     => 'client_id',
-			'FAABLE_PROJECT_ID'         => 'project_id',
 			'FAABLE_AUTH_AUDIENCE'      => 'audience',
 			'FAABLE_AUTH_REST_AUDIENCE' => 'rest_audience',
 			'FAABLE_AUTH_REST_USER'     => 'rest_user',
@@ -242,7 +240,6 @@ final class Admin {
 				'domain'            => '',
 				'client_id'         => '',
 				'client_secret_enc' => '',
-				'project_id'        => '',
 				'account_id'        => '',
 				'source'            => '',
 			)
@@ -393,13 +390,12 @@ final class Admin {
 						<?php endif; ?>
 					</td></tr>
 					<?php
-					self::row( 'FAABLE_PROJECT_ID', 'project_id', __( 'Faable project', 'faable-auth' ) );
 					self::row( 'FAABLE_AUTH_AUDIENCE', 'audience', __( 'API audience (optional)', 'faable-auth' ), __( 'An API of your tenant with "include roles in ID token" on. Empty: roles are read from the Management API.', 'faable-auth' ) );
 					?>
 				</table>
 
 				<h2><?php esc_html_e( 'Roles', 'faable-auth' ); ?></h2>
-				<p><?php esc_html_e( 'One "Faable Auth role = WordPress role" per line. A user whose roles map to nothing is refused. Roles are re-synced on every login. Members of the Faable project are administrators.', 'faable-auth' ); ?></p>
+				<p><?php esc_html_e( 'One "Faable Auth role = WordPress role" per line. A user whose roles map to nothing is refused. Roles are re-synced on every login.', 'faable-auth' ); ?></p>
 				<textarea name="faable_auth[role_map]" rows="7" cols="50" class="code" <?php echo Config::is_locked( 'FAABLE_AUTH_ROLE_MAP' ) ? 'readonly' : ''; ?>><?php echo esc_textarea( RoleMapper::to_text( Config::role_map() ) ); ?></textarea>
 
 				<h2><?php esc_html_e( 'Headless (REST API with machine-to-machine tokens)', 'faable-auth' ); ?></h2>

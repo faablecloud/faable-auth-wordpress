@@ -47,20 +47,20 @@ function throws( callable $fn, string $message ): bool {
 // ---------------------------------------------------------------- RoleMapper
 echo "RoleMapper\n";
 $map = RoleMapper::default_map();
-check( 'project member is administrator even without roles', 'administrator' === RoleMapper::resolve( array(), true, $map ) );
-check( 'no mapped role means no account', null === RoleMapper::resolve( array( 'support', 'billing' ), false, $map ) );
-check( 'no roles at all means no account', null === RoleMapper::resolve( array(), false, $map ) );
-check( 'editor maps to editor', 'editor' === RoleMapper::resolve( array( 'Editor' ), false, $map ) );
-check( 'admin alias maps to administrator', 'administrator' === RoleMapper::resolve( array( 'admin' ), false, $map ) );
-check( 'most privileged wins', 'editor' === RoleMapper::resolve( array( 'subscriber', 'editor', 'author' ), false, $map ) );
+check( 'membership role is not special (only the map counts)', null === RoleMapper::resolve( array( 'faable-project-member' ), $map ) );
+check( 'no mapped role means no account', null === RoleMapper::resolve( array( 'support', 'billing' ), $map ) );
+check( 'no roles at all means no account', null === RoleMapper::resolve( array(), $map ) );
+check( 'editor maps to editor', 'editor' === RoleMapper::resolve( array( 'Editor' ), $map ) );
+check( 'admin alias maps to administrator', 'administrator' === RoleMapper::resolve( array( 'admin' ), $map ) );
+check( 'most privileged wins', 'editor' === RoleMapper::resolve( array( 'subscriber', 'editor', 'author' ), $map ) );
 $custom = RoleMapper::parse( "staff = editor\n# comment\nreaders=subscriber\nbad = Not A Role!" );
 check( 'line map parses', array( 'staff' => 'editor', 'readers' => 'subscriber' ) === $custom );
-check( 'custom map replaces defaults', null === RoleMapper::resolve( array( 'editor' ), false, $custom ) );
-check( 'custom map resolves', 'editor' === RoleMapper::resolve( array( 'STAFF' ), false, $custom ) );
+check( 'custom map replaces defaults', null === RoleMapper::resolve( array( 'editor' ), $custom ) );
+check( 'custom map resolves', 'editor' === RoleMapper::resolve( array( 'STAFF' ), $custom ) );
 check( 'json map parses', array( 'shop' => 'shop_manager' ) === RoleMapper::parse( '{"Shop":"shop_manager"}' ) );
 check( 'empty map = defaults', RoleMapper::default_map() === RoleMapper::parse( '  ' ) );
-check( 'custom WP role ranks below core roles', 'author' === RoleMapper::resolve( array( 'shop', 'author' ), false, array( 'shop' => 'shop_manager', 'author' => 'author' ) ) );
-check( 'role missing in the site is skipped', null === RoleMapper::resolve( array( 'shop' ), false, array( 'shop' => 'shop_manager' ), array( 'administrator', 'editor' ) ) );
+check( 'custom WP role ranks below core roles', 'author' === RoleMapper::resolve( array( 'shop', 'author' ), array( 'shop' => 'shop_manager', 'author' => 'author' ) ) );
+check( 'role missing in the site is skipped', null === RoleMapper::resolve( array( 'shop' ), array( 'shop' => 'shop_manager' ), array( 'administrator', 'editor' ) ) );
 check( 'round trip text', $custom === RoleMapper::parse( RoleMapper::to_text( $custom ) ) );
 
 // ---------------------------------------------------------------- JWT

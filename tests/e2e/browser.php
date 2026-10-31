@@ -108,7 +108,6 @@ check( 'handoff exchanged and stored', str_contains( $last['body'], 'Connected.'
 check( 'secret never shown on the page', ! str_contains( $last['body'], 'secret_wp_123' ) );
 $opt = wp_cli( 'option get faable_auth_settings --format=json' );
 check( 'secret stored encrypted', str_contains( $opt, '"client_secret_enc":"fa1:' ) && ! str_contains( $opt, 'secret_wp_123' ) );
-check( 'project id stored', str_contains( $opt, '"project_id":"project_test"' ) );
 $replay = $admin->get( $hops[1]['url'] ?? WP );
 $replay = $admin->get( WP . '/wp-admin/options-general.php?page=faable-auth' );
 check( 'replayed handoff return is refused', str_contains( $replay['body'], 'expired or was started by someone else' ) );
@@ -160,8 +159,9 @@ check( 'user without a mapped role is refused with an explanation', 403 === $las
 check( '... and gets no account', str_contains( wp_cli( 'user get bob@example.com --field=ID' ), 'Error' ) );
 
 $carol = new Browser();
-faable_login( $carol, 'carol' );
-check( 'project member (reserved role) is administrator', 'administrator' === wp_cli( 'user get carol --field=roles' ) );
+$hops  = faable_login( $carol, 'carol' );
+$last = end( $hops );
+check( 'a user whose only role is unmapped gets no account', 403 === $last['status'] && str_contains( wp_cli( 'user get carol@example.com --field=ID' ), 'Error' ) );
 
 $adm = new Browser();
 faable_login( $adm, 'admin' );
@@ -242,8 +242,8 @@ $r = ( new Browser() )->get( WP . '/wp-login.php' );
 check( 'break glass off again: Faable only', ! str_contains( $r['body'], 'name="pwd"' ) );
 
 echo "Env configuration (Faable hosting)\n";
-$st = trim( (string) shell_exec( 'FAABLE_AUTH_DOMAIN=http://idp.test:8080 FAABLE_AUTH_CLIENT_ID=client_env FAABLE_AUTH_CLIENT_SECRET=s FAABLE_PROJECT_ID=project_env wp --path=/var/www/html --allow-root faable-auth status --format=json 2>&1' ) );
-check( 'env vars win over settings', str_contains( $st, '"value":"client_env","source":"env\/constant"' ) && str_contains( $st, 'project_env' ) && ! str_contains( $st, '"s"' ), $st );
+$st = trim( (string) shell_exec( 'FAABLE_AUTH_DOMAIN=http://idp.test:8080 FAABLE_AUTH_CLIENT_ID=client_env FAABLE_AUTH_CLIENT_SECRET=s wp --path=/var/www/html --allow-root faable-auth status --format=json 2>&1' ) );
+check( 'env vars win over settings', str_contains( $st, '"value":"client_env","source":"env\/constant"' ) && ! str_contains( $st, '"s"' ), $st );
 
 echo "\n$count checks, $fails failed\n";
 exit( $fails ? 1 : 0 );
