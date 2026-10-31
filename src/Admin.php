@@ -42,6 +42,7 @@ final class Admin {
 		add_action( 'admin_post_faable_auth_connect', array( __CLASS__, 'connect_start' ) );
 		add_action( 'admin_post_faable_auth_connect_return', array( __CLASS__, 'connect_return' ) );
 		add_action( 'admin_post_faable_auth_disconnect', array( __CLASS__, 'disconnect' ) );
+		add_action( 'admin_post_faable_auth_push_user', array( __CLASS__, 'push_user' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notices' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( FAABLE_AUTH_FILE ), array( __CLASS__, 'action_links' ) );
 		add_filter( 'plugin_row_meta', array( __CLASS__, 'row_meta' ), 10, 2 );
@@ -79,7 +80,7 @@ final class Admin {
 			$sub = (string) get_user_meta( $user->ID, Login::META_SUB, true );
 			$url = current_user_can( self::CAP ) ? Config::user_url( $sub ) : '';
 			echo '<p><span class="faable-auth-managed-user" style="display:inline-flex;align-items:center;gap:6px;font-weight:600">' . Login::emblem() . esc_html__( 'Managed by Faable Auth', 'faable-auth' ) . '</span></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- emblem() is a fixed <img> built from our own file.
-			echo '<p class="description">' . esc_html__( 'This user signs in with Faable. Email, password and role are managed in Faable Auth: the role is synced from the tenant on every login.', 'faable-auth' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'This user signs in with Faable. Email and password are managed in Faable Auth. The role is synced from the tenant on every login, and a role changed here is changed there too.', 'faable-auth' ) . '</p>';
 			if ( '' !== $url ) {
 				echo '<p><a class="button" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Open in the Faable dashboard', 'faable-auth' ) . ' <span aria-hidden="true">↗</span></a></p>';
 			}
@@ -90,7 +91,31 @@ final class Admin {
 			echo '<p>' . esc_html__( 'Not linked to Faable Auth yet.', 'faable-auth' ) . '</p>';
 			echo '<p class="description">' . esc_html__( 'Linked on this person\'s first Faable sign-in with the same, verified email; until then this account cannot log in.', 'faable-auth' ) . '</p>';
 		}
+		$error = (string) get_user_meta( $user->ID, UserSync::META_ERROR, true );
+		if ( '' !== $error ) {
+			/* translators: %s: the error Faable Auth answered */
+			echo '<div class="notice notice-error inline faable-auth-sync-error"><p>' . esc_html( sprintf( __( 'Could not sync this user to Faable Auth: %s', 'faable-auth' ), $error ) ) . '</p></div>';
+		}
+		if ( 'service' !== $kind && ( '' !== $error || 'local' === $kind ) && current_user_can( 'promote_user', $user->ID ) ) {
+			$url = wp_nonce_url( admin_url( 'admin-post.php?action=faable_auth_push_user&user_id=' . $user->ID ), 'faable_auth_push_user_' . $user->ID );
+			echo '<p><a class="button" href="' . esc_url( $url ) . '">' . esc_html__( 'Sync to Faable Auth', 'faable-auth' ) . '</a></p>';
+			echo '<p class="description">' . esc_html__( 'Creates this user in the Faable Auth tenant (or links the one with the same email) with its WordPress password and role.', 'faable-auth' ) . '</p>';
+		}
 		echo '</td></tr></table>';
+	}
+
+	/**
+	 * "Sync to Faable Auth" on a user's profile.
+	 */
+	public static function push_user(): void {
+		$user_id = isset( $_GET['user_id'] ) ? absint( $_GET['user_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- checked below.
+		check_admin_referer( 'faable_auth_push_user_' . $user_id );
+		if ( ! $user_id || ! current_user_can( 'promote_user', $user_id ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'faable-auth' ), '', array( 'response' => 403 ) );
+		}
+		UserSync::push( $user_id );
+		wp_safe_redirect( get_edit_user_link( $user_id ) );
+		exit;
 	}
 
 	/**
@@ -125,7 +150,8 @@ final class Admin {
 			'service' => __( 'Service (Application Password)', 'faable-auth' ),
 			'local'   => __( 'Not linked', 'faable-auth' ),
 		);
-		return esc_html( $labels[ self::sign_in_kind( $user ) ] );
+		$failed = '' !== (string) get_user_meta( $user->ID, UserSync::META_ERROR, true );
+		return esc_html( $labels[ self::sign_in_kind( $user ) ] . ( $failed ? ' · ' . __( 'sync failed', 'faable-auth' ) : '' ) );
 	}
 
 	/**

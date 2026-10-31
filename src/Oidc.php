@@ -15,6 +15,9 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Oidc {
 
+	/** What reading a user's roles needs; every site client is granted it. */
+	const READ_SCOPE = 'read:rolemembers';
+
 	const CACHE_TTL = HOUR_IN_SECONDS;
 
 	/** Tenant base URL, which is also the issuer. */
@@ -253,8 +256,8 @@ final class Oidc {
 	 *
 	 * @return string|\WP_Error
 	 */
-	private function management_token() {
-		$cached = get_transient( $this->mgmt_key() );
+	private function management_token( string $scope = self::READ_SCOPE ) {
+		$cached = get_transient( $this->mgmt_key( $scope ) );
 		if ( is_string( $cached ) && '' !== $cached ) {
 			return $cached;
 		}
@@ -269,7 +272,7 @@ final class Oidc {
 			array(
 				'grant_type' => 'client_credentials',
 				'audience'   => 'faable:management:' . $doc['account'],
-				'scope'      => 'read:rolemembers',
+				'scope'      => $scope,
 			)
 		);
 		if ( is_wp_error( $res ) ) {
@@ -280,15 +283,52 @@ final class Oidc {
 			return new \WP_Error( 'faable_auth_token', 'No access token in response' );
 		}
 		$ttl = max( 60, (int) ( $res['expires_in'] ?? 3600 ) - 300 );
-		set_transient( $this->mgmt_key(), $token, $ttl );
+		set_transient( $this->mgmt_key( $scope ), $token, $ttl );
 		return $token;
+	}
+
+	/**
+	 * A call to the tenant's Management API with a token for `$scope` (the
+	 * write side: creating users and assigning roles, see UserSync). A 401
+	 * drops the cached token so the next call asks for a new one.
+	 *
+	 * @param string     $method HTTP method.
+	 * @param string     $path   Path under the issuer, e.g. /user/import.
+	 * @param array|null $body   JSON body.
+	 * @param string     $scope  Space-separated scopes for the token.
+	 * @return array|\WP_Error Decoded JSON.
+	 */
+	public function management( string $method, string $path, ?array $body, string $scope ) {
+		$token = $this->management_token( $scope );
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+		$args = array(
+			'method'  => $method,
+			'timeout' => 15,
+			'headers' => array(
+				'Accept'        => 'application/json',
+				'Authorization' => 'Bearer ' . $token,
+			),
+		);
+		if ( null !== $body ) {
+			$args['headers']['Content-Type'] = 'application/json';
+			$args['body']                    = wp_json_encode( $body );
+		}
+		$data = $this->json_response( wp_remote_request( $this->issuer . $path, $args ) );
+		if ( is_wp_error( $data ) && 401 === (int) $data->get_error_data() ) {
+			delete_transient( $this->mgmt_key( $scope ) );
+		}
+		return $data;
 	}
 
 	/**
 	 * Transient key for the management token.
 	 */
-	private function mgmt_key(): string {
-		return 'faable_auth_mgmt_' . md5( $this->issuer . '|' . Config::get( 'FAABLE_AUTH_CLIENT_ID' ) );
+	private function mgmt_key( string $scope = self::READ_SCOPE ): string {
+		// The read token keeps its old key, so an upgrade reuses the cached one.
+		$suffix = self::READ_SCOPE === $scope ? '' : '|' . $scope;
+		return 'faable_auth_mgmt_' . md5( $this->issuer . '|' . Config::get( 'FAABLE_AUTH_CLIENT_ID' ) . $suffix );
 	}
 
 	/**

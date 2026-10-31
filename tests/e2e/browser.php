@@ -281,8 +281,9 @@ check( 'profile: alice is Managed by Faable Auth', str_contains( $r['body'], 'Ma
 check( '... with her page in the Faable dashboard', str_contains( $r['body'], 'href="https://dashboard.faable.com/auth/project_6a8ebd6160324d4631c12edc/account/account_6aab075db8185a5d3bd64caf/user/user_alice"' ) );
 
 echo "\nLocal users with Application Passwords\n";
-wp_cli( 'user create svc svc@example.com --role=editor' );
+// Listed first: a listed user is never pushed to Faable Auth (UserSync).
 wp_cli( "config set FAABLE_AUTH_APP_PASSWORD_USERS 'svc,alice'" );
+wp_cli( 'user create svc svc@example.com --role=editor' );
 sleep( 3 );
 $svc_pw   = wp_cli( 'user application-password create svc front --porcelain' );
 $alice_pw = wp_cli( 'user application-password create alice front --porcelain' );
@@ -301,6 +302,65 @@ wp_cli( 'config delete FAABLE_AUTH_APP_PASSWORD_USERS' );
 sleep( 3 );
 $r = $rest( 'svc', $svc_pw );
 check( 'not listed: the same Application Password is refused', 401 === $r['status'], $r['status'] . ' ' . substr( $r['body'], 0, 200 ) );
+
+// --- Users made in WordPress go to Faable Auth (UserSync).
+check( 'a Faable login is not pushed back to Faable', empty( idp( '/test/mgmt' )['grants']['user_alice'] ?? array() ) );
+$r = $e->get( WP . '/wp-admin/user-new.php' );
+preg_match( '/name="_wpnonce_create-user" value="([^"]+)"/', $r['body'], $m );
+$dora_pw = 'Dora-pässwörd-' . bin2hex( random_bytes( 4 ) );
+$e->post(
+	WP . '/wp-admin/user-new.php',
+	array(
+		'action'                 => 'createuser',
+		'_wpnonce_create-user'   => $m[1] ?? '',
+		'user_login'             => 'dora',
+		'email'                  => 'dora@example.com',
+		'first_name'             => 'Dora',
+		'pass1'                  => $dora_pw,
+		'pass2'                  => $dora_pw,
+		'pw_weak'                => 'on',
+		'role'                   => 'author',
+		'createuser'             => 'Add New User',
+	)
+);
+$dora_sub = wp_cli( 'user meta get dora faable_auth_sub' );
+$mg       = idp( '/test/mgmt' );
+$imported = array_values( array_filter( $mg['users'], fn( $u ) => 'dora@example.com' === $u['email'] ) )[0] ?? array();
+check( 'Add New User: created in Faable Auth and linked', str_starts_with( $dora_sub, 'user_' ) && ( $imported['sub'] ?? '' ) === $dora_sub, $dora_sub . ' ' . json_encode( $mg['users'] ) );
+$h = (string) ( $imported['password_hash'] ?? '' );
+check( '... with its WordPress hash, which verifies the password typed in wp-admin', str_starts_with( $h, '$wp$2y$' ) && password_verify( base64_encode( hash_hmac( 'sha384', $dora_pw, 'wp-sha384', true ) ), substr( $h, 3 ) ) );
+// This site's role map is { editor: editor, staff: author }: author is `staff` in Faable.
+check( '... and its role: the mapped Faable role (staff) created in the tenant and assigned', in_array( 'staff', $mg['roles'], true ) && array( 'staff' ) === ( $mg['grants'][ $dora_sub ] ?? null ), json_encode( $mg ) );
+$r = $e->get( WP . '/wp-admin/user-edit.php?user_id=' . wp_cli( 'user get dora --field=ID' ) );
+check( '... its profile says Managed by Faable Auth', str_contains( $r['body'], 'Managed by Faable Auth' ) && ! str_contains( $r['body'], 'Could not sync' ) );
+
+wp_cli( 'user set-role dora editor' );
+check( 'role changed in WordPress: the same change in Faable Auth', array( 'editor' ) === ( idp( '/test/mgmt' )['grants'][ $dora_sub ] ?? null ), json_encode( idp( '/test/mgmt' )['grants'] ) );
+
+wp_cli( 'user create bob2 bob@example.com --role=editor' );
+$mg = idp( '/test/mgmt' );
+check( 'an email the tenant has: linked, not created again', 'user_bob' === wp_cli( 'user meta get bob2 faable_auth_sub' ) && ! in_array( 'bob@example.com', array_column( $mg['users'], 'email' ), true ) );
+check( '... and given the role', in_array( 'editor', $mg['grants']['user_bob'] ?? array(), true ) );
+
+wp_cli( 'user delete dora --yes' );
+check( 'deleted in WordPress: its mapped roles go in Faable Auth, the user stays', array() === ( idp( '/test/mgmt' )['grants'][ $dora_sub ] ?? null ) && in_array( $dora_sub, array_column( idp( '/test/mgmt' )['users'], 'sub' ), true ) );
+
+// A client without the write scopes: WordPress still works, the user is flagged.
+idp( '/test/read-only-client' );
+wp_cli( 'transient delete --all' );
+wp_cli( 'user create erin erin@example.com --role=author' );
+$erin = wp_cli( 'user get erin --field=ID' );
+check( 'without the write scopes: the WordPress user is still created', ctype_digit( $erin ) && '' === wp_cli( 'user meta get erin faable_auth_sub' ) );
+$r = $e->get( WP . '/wp-admin/user-edit.php?user_id=' . $erin );
+check( '... its profile says the sync failed, with a retry button', str_contains( $r['body'], 'Could not sync this user to Faable Auth' ) && str_contains( $r['body'], 'management_scope_not_allowed' ) && str_contains( $r['body'], 'Sync to Faable Auth' ) );
+check( '... and the users list says so', str_contains( $e->get( WP . '/wp-admin/users.php' )['body'], 'sync failed' ) );
+idp( '/test/read-only-client?off=1' );
+preg_match( '#href="([^"]*action=faable_auth_push_user[^"]*)"#', $r['body'], $m );
+$e->get( html_entity_decode( $m[1] ?? '' ) );
+check( 'Sync to Faable Auth: linked once the scopes are there', str_starts_with( wp_cli( 'user meta get erin faable_auth_sub' ), 'user_' ) && '' === wp_cli( 'user meta get erin faable_auth_sync_error' ) );
+wp_cli( 'config set FAABLE_AUTH_APP_PASSWORD_USERS svc' );
+check( 'wp faable-auth push-users skips local service users', str_contains( wp_cli( 'faable-auth push-users erin svc' ), 'skip  svc' ) && '' === wp_cli( 'user meta get svc faable_auth_sub' ) );
+wp_cli( 'config delete FAABLE_AUTH_APP_PASSWORD_USERS' );
 
 // Managed but the platform's client id missing: never fall back to the option.
 wp_cli( 'config delete FAABLE_AUTH_CLIENT_ID' );

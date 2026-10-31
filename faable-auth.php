@@ -29,7 +29,7 @@ define( 'FAABLE_AUTH_FILE', __FILE__ );
 // The wordpress.org build (bin/build-zip.sh --wporg) rewrites it to 'wporg'.
 define( 'FAABLE_AUTH_DISTRIBUTION', 'github' );
 
-foreach ( array( 'Jwt', 'Pkce', 'RoleMapper', 'BreakGlass', 'Crypto', 'Config', 'Oidc', 'LoginLink', 'Login', 'Rest', 'Admin' ) as $faable_auth_class ) {
+foreach ( array( 'Jwt', 'Pkce', 'RoleMapper', 'BreakGlass', 'Crypto', 'Config', 'Oidc', 'LoginLink', 'Login', 'UserSync', 'Rest', 'Admin' ) as $faable_auth_class ) {
 	require_once __DIR__ . '/src/' . $faable_auth_class . '.php';
 }
 unset( $faable_auth_class );
@@ -40,6 +40,7 @@ add_action(
 	'plugins_loaded',
 	static function () {
 		FaableAuth\Login::init();
+		FaableAuth\UserSync::init();
 		FaableAuth\Rest::init();
 		if ( is_admin() ) {
 			FaableAuth\Admin::init();

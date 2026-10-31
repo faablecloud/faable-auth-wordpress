@@ -29,11 +29,15 @@ docker run -d --name "$P-db" --network "$NET" --network-alias db \
 docker run -d --name "$P-idp" --network "$NET" --network-alias idp.test \
   -v "$ROOT/tests/e2e:/idp:ro" php:8.4-cli php -S 0.0.0.0:8080 /idp/idp.php >/dev/null
 
+# The same wp-config extras for the site and for wp-cli: without them a `wp`
+# command sees an http:// tenant as unconfigured and skips every hook.
+CONFIG_EXTRA="define('FAABLE_AUTH_ALLOW_INSECURE_HTTP', true); define('FAABLE_AUTH_CONNECT_URL', 'http://idp.test:8080/connect/wordpress'); define('FAABLE_AUTH_CONNECT_EXCHANGE_URL', 'http://idp.test:8080/connect/exchange');"
+
 docker run -d --name "$P-wp" --network "$NET" --network-alias wp.test \
   -v "$P-html:/var/www/html" \
   -v "$ROOT:/var/www/html/wp-content/plugins/faable-auth:ro" \
   -e WORDPRESS_DB_HOST=db -e WORDPRESS_DB_USER=wp -e WORDPRESS_DB_PASSWORD=wp -e WORDPRESS_DB_NAME=wp \
-  -e WORDPRESS_CONFIG_EXTRA="define('FAABLE_AUTH_ALLOW_INSECURE_HTTP', true); define('FAABLE_AUTH_CONNECT_URL', 'http://idp.test:8080/connect/wordpress'); define('FAABLE_AUTH_CONNECT_EXCHANGE_URL', 'http://idp.test:8080/connect/exchange');" \
+  -e WORDPRESS_CONFIG_EXTRA="$CONFIG_EXTRA" \
   wordpress:php8.4-apache >/dev/null
 
 cli() {
@@ -42,6 +46,7 @@ cli() {
     -v "$ROOT:/var/www/html/wp-content/plugins/faable-auth:ro" \
     -v "$ROOT/tests/e2e:/e2e:ro" \
     -e WORDPRESS_DB_HOST=db -e WORDPRESS_DB_USER=wp -e WORDPRESS_DB_PASSWORD=wp -e WORDPRESS_DB_NAME=wp \
+    -e WORDPRESS_CONFIG_EXTRA="$CONFIG_EXTRA" \
     wordpress:cli-php8.4 "$@"
 }
 

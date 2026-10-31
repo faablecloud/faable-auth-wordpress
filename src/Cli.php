@@ -46,6 +46,66 @@ final class Cli {
 	}
 
 	/**
+	 * Create WordPress users in Faable Auth (or link the tenant user with the
+	 * same email) with their WordPress password hash and their role, as
+	 * Users → Add New does. Users already linked only get their role pushed.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<user>...]
+	 * : User IDs, logins or emails.
+	 *
+	 * [--all]
+	 * : Every user that is not a local service user.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp faable-auth push-users editor@example.com
+	 *     wp faable-auth push-users --all
+	 *
+	 * @subcommand push-users
+	 * @param array $args       Positional.
+	 * @param array $assoc_args Named.
+	 */
+	public function push_users( $args, $assoc_args ): void {
+		if ( ! Config::is_configured() ) {
+			\WP_CLI::error( 'Faable Auth is not configured.' );
+		}
+		$users = array();
+		if ( ! empty( $assoc_args['all'] ) ) {
+			$users = get_users( array( 'number' => -1 ) );
+		}
+		foreach ( $args as $who ) {
+			$user = is_numeric( $who ) ? get_user_by( 'id', (int) $who ) : ( get_user_by( 'login', $who ) ?: get_user_by( 'email', $who ) );
+			if ( ! $user ) {
+				\WP_CLI::error( "No user '$who'." );
+			}
+			$users[] = $user;
+		}
+		if ( ! $users ) {
+			\WP_CLI::error( 'Name the users, or pass --all.' );
+		}
+		$failed = 0;
+		foreach ( $users as $user ) {
+			if ( Login::is_local_service_user( $user ) || in_array( (string) $user->user_login, Config::app_password_users(), true ) ) {
+				\WP_CLI::line( "skip  {$user->user_login} (local service user)" );
+				continue;
+			}
+			$res = UserSync::push( (int) $user->ID );
+			if ( is_wp_error( $res ) ) {
+				++$failed;
+				\WP_CLI::warning( "{$user->user_login}: " . $res->get_error_message() );
+			} else {
+				\WP_CLI::line( "ok    {$user->user_login} → " . get_user_meta( $user->ID, Login::META_SUB, true ) );
+			}
+		}
+		if ( $failed ) {
+			\WP_CLI::error( "$failed failed." );
+		}
+		\WP_CLI::success( 'Done.' );
+	}
+
+	/**
 	 * Show how sign-in is configured (never prints the secret).
 	 *
 	 * @param array $args       Positional.

@@ -250,7 +250,7 @@ final class Login {
 			self::fail( 'roles', $roles );
 		}
 
-		$user = self::provision( $claims, $roles );
+		$user = UserSync::quietly( static fn() => self::provision( $claims, $roles ) );
 		if ( is_wp_error( $user ) ) {
 			self::fail( $user->get_error_code(), $user );
 		}

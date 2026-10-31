@@ -64,6 +64,47 @@ function store( string $name, $value = null ) {
 	}
 	file_put_contents( $f, json_encode( $value ) );
 }
+// The write side of the Management API (UserSync): users imported and roles
+// created or assigned by the site, kept across requests (unlike store()).
+function mgmt( ?array $value = null ): array {
+	$f = DIR . '/mgmt.json';
+	if ( null !== $value ) {
+		file_put_contents( $f, json_encode( $value ) );
+		return $value;
+	}
+	return is_file( $f ) ? json_decode( file_get_contents( $f ), true ) : array( 'users' => array(), 'roles' => array(), 'grants' => array() );
+}
+// The bearer's scopes, or a 401/403 answer.
+function need_scope( string $scope ): void {
+	if ( ! preg_match( '/^Bearer (.+)$/', $_SERVER['HTTP_AUTHORIZATION'] ?? '', $t ) ) {
+		json( array( 'error' => 'unauthorized' ), 401 );
+	}
+	$payload = json_decode( base64_decode( strtr( explode( '.', $t[1] )[1], '-_', '+/' ) ), true );
+	if ( ( $payload['aud'] ?? '' ) !== 'faable:management:' . ACCOUNT || ! in_array( $scope, explode( ' ', (string) ( $payload['scope'] ?? '' ) ), true ) ) {
+		json( array( 'error' => 'insufficient_scope', 'message' => "needs $scope" ), 403 );
+	}
+}
+// Role names of a user: the fixed ones (or their override) plus grants.
+function roles_of( string $sub ): ?array {
+	$m = mgmt();
+	foreach ( USERS as $name => $u ) {
+		if ( $u[0] === $sub ) {
+			$override = DIR . '/roles_' . $name;
+			$base     = is_file( $override ) ? array_filter( explode( ',', trim( file_get_contents( $override ) ) ) ) : $u[2];
+			return array_values( array_unique( array_merge( $base, $m['grants'][ $sub ] ?? array() ) ) );
+		}
+	}
+	foreach ( $m['users'] as $u ) {
+		if ( $u['sub'] === $sub ) {
+			return $m['grants'][ $sub ] ?? array();
+		}
+	}
+	return null;
+}
+function role_name( string $id ): string {
+	return (string) preg_replace( '/^role_/', '', $id );
+}
+
 function client_auth(): bool {
 	return ( $_POST['client_id'] ?? '' ) === CLIENT_ID && hash_equals( CLIENT_SECRET, (string) ( $_POST['client_secret'] ?? '' ) );
 }
@@ -150,29 +191,96 @@ switch ( true ) {
 			if ( ( $_POST['audience'] ?? '' ) !== 'faable:management:' . ACCOUNT ) {
 				json( array( 'error' => 'access_denied' ), 403 );
 			}
+			// Like auth's per-client allow-list: a client granted read:rolemembers only.
+			if ( is_file( DIR . '/read_only_client' ) && 'read:rolemembers' !== ( $_POST['scope'] ?? '' ) ) {
+				json( array( 'error' => 'invalid_scope', 'error_description' => 'management_scope_not_allowed: create:users' ), 400 );
+			}
 			json( array( 'access_token' => jwt( array( 'sub' => CLIENT_ID, 'client_id' => CLIENT_ID, 'aud' => $_POST['audience'], 'scope' => $_POST['scope'] ?? '' ) ), 'token_type' => 'Bearer', 'expires_in' => 86400 ) );
 		}
 		json( array( 'error' => 'unsupported_grant_type' ), 400 );
 
-	case (bool) preg_match( '#^/user/([^/]+)/roles$#', $path, $m ):
-		$auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-		if ( ! preg_match( '/^Bearer (.+)$/', $auth, $t ) ) {
-			json( array( 'error' => 'unauthorized' ), 401 );
+	case '/test/mgmt' === $path:
+		json( mgmt() );
+	case '/test/read-only-client' === $path:
+		empty( $_GET['off'] ) ? touch( DIR . '/read_only_client' ) : @unlink( DIR . '/read_only_client' );
+		json( array( 'ok' => true ) );
+
+	case '/user/import' === $path && 'POST' === $_SERVER['REQUEST_METHOD']:
+		need_scope( 'create:users' );
+		$body = json_decode( file_get_contents( 'php://input' ), true );
+		if ( ! empty( $body['update_existing'] ) ) {
+			need_scope( 'update:credentials' );
 		}
-		$payload = json_decode( base64_decode( strtr( explode( '.', $t[1] )[1], '-_', '+/' ) ), true );
-		if ( ( $payload['aud'] ?? '' ) !== 'faable:management:' . ACCOUNT || false === strpos( (string) ( $payload['scope'] ?? '' ), 'read:rolemembers' ) ) {
-			json( array( 'error' => 'insufficient_scope' ), 403 );
-		}
-		foreach ( USERS as $name => $u ) {
-			if ( $u[0] === urldecode( $m[1] ) ) {
-				$override = DIR . '/roles_' . $name;
-				if ( is_file( $override ) ) {
-					$u[2] = array_filter( explode( ',', trim( file_get_contents( $override ) ) ) );
+		$m    = mgmt();
+		$out  = array();
+		foreach ( $body['users'] as $i => $row ) {
+			$sub = null;
+			foreach ( USERS as $u ) {
+				if ( $u[1] === $row['email'] ) {
+					$sub = $u[0];
 				}
-				json( array_map( fn( $r ) => array( 'id' => 'role_' . $r, 'name' => $r, 'description' => '', 'permissions' => array() ), $u[2] ) );
 			}
+			foreach ( $m['users'] as $u ) {
+				if ( $u['email'] === $row['email'] ) {
+					$sub = $u['sub'];
+				}
+			}
+			if ( $sub ) {
+				$out[] = array( 'index' => $i, 'email' => $row['email'], 'status' => 'skipped', 'user_id' => $sub );
+				continue;
+			}
+			$sub          = 'user_' . substr( md5( $row['email'] ), 0, 12 );
+			$m['users'][] = array( 'sub' => $sub, 'email' => $row['email'], 'name' => $row['name'] ?? '', 'password_hash' => $row['password_hash'] ?? null );
+			$out[]        = array( 'index' => $i, 'email' => $row['email'], 'status' => 'created', 'user_id' => $sub );
 		}
-		json( array( 'error' => 'user_not_found' ), 404 );
+		mgmt( $m );
+		json( array( 'summary' => array( 'total' => count( $out ) ), 'results' => $out ) );
+
+	case '/role' === $path && 'GET' === $_SERVER['REQUEST_METHOD']:
+		need_scope( 'read:roles' );
+		$names = mgmt()['roles'];
+		foreach ( USERS as $u ) {
+			$names = array_merge( $names, $u[2] );
+		}
+		json( array( 'results' => array_map( fn( $n ) => array( 'id' => 'role_' . $n, 'name' => $n ), array_values( array_unique( $names ) ) ) ) );
+
+	case '/role' === $path && 'POST' === $_SERVER['REQUEST_METHOD']:
+		need_scope( 'create:roles' );
+		$body         = json_decode( file_get_contents( 'php://input' ), true );
+		$m            = mgmt();
+		$m['roles'][] = $body['name'];
+		mgmt( $m );
+		json( array( 'id' => 'role_' . $body['name'], 'name' => $body['name'] ) );
+
+	case (bool) preg_match( '#^/user/([^/]+)/roles$#', $path, $mt ):
+		$sub = urldecode( $mt[1] );
+		if ( 'GET' === $_SERVER['REQUEST_METHOD'] ) {
+			need_scope( 'read:rolemembers' );
+		} else {
+			need_scope( 'POST' === $_SERVER['REQUEST_METHOD'] ? 'create:rolemembers' : 'delete:rolemembers' );
+			if ( null === roles_of( $sub ) ) {
+				json( array( 'error' => 'not_found' ), 404 );
+			}
+			$body  = json_decode( file_get_contents( 'php://input' ), true );
+			$names = array_map( 'role_name', (array) $body['roles'] );
+			$m     = mgmt();
+			$have  = $m['grants'][ $sub ] ?? array();
+			$m['grants'][ $sub ] = array_values( 'POST' === $_SERVER['REQUEST_METHOD'] ? array_unique( array_merge( $have, $names ) ) : array_diff( $have, $names ) );
+			if ( 'DELETE' === $_SERVER['REQUEST_METHOD'] ) {
+				// A fixed user's own roles can be taken away too.
+				foreach ( USERS as $name => $u ) {
+					if ( $u[0] === $sub ) {
+						file_put_contents( DIR . '/roles_' . $name, implode( ',', array_diff( roles_of( $sub ), $names ) ) );
+					}
+				}
+			}
+			mgmt( $m );
+		}
+		$roles = roles_of( $sub );
+		if ( null === $roles ) {
+			json( array( 'error' => 'user_not_found' ), 404 );
+		}
+		json( array_map( fn( $r ) => array( 'id' => 'role_' . $r, 'name' => $r, 'description' => '', 'permissions' => array() ), $roles ) );
 
 	// --- The "dashboard": pretend the admin picked a project and tenant.
 	case '/connect/wordpress' === $path:

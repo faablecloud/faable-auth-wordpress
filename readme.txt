@@ -61,6 +61,12 @@ The roles of a user are read from the ID token's `roles` claim when the site req
 
 Roles are managed in the project's Faable Auth tenant: being a member of the Faable project gives no role on the site.
 
+= Users added in WordPress =
+
+A user added in Users → Add New (or with `wp user create`) is also created in the Faable Auth tenant, with the password typed in WordPress (its WordPress 6.8+ hash is imported, so the same password works on the Faable login) and the Faable Auth role that maps to its WordPress role. An email the tenant already has is linked to that user instead, and its password is left as it is. A role changed in WordPress is changed in Faable Auth too, and deleting a user removes its mapped roles there (the Faable Auth user stays: it may use other apps of the tenant).
+
+This needs the site's client to hold the Management API scopes `create:users read:roles create:roles create:rolemembers delete:rolemembers`. Without them WordPress works as before: the user's profile and the users list say the sync failed, and "Sync to Faable Auth" on the profile retries. `wp faable-auth push-users <user>…` (or `--all`) does the same from the command line. Users listed in `FAABLE_AUTH_APP_PASSWORD_USERS` are never synced.
+
 = Headless front-ends (REST API) =
 
 Set the token audience (an API identifier of your tenant) and the WordPress user the requests act as. A request with `Authorization: Bearer <token>` is accepted when the token is a client_credentials token of your tenant for that audience, from an allowed client and, if set, with the required scope. It gets the capabilities of that user, so give it the smallest role that works.
@@ -94,6 +100,10 @@ Faable terms of service: https://faable.com/docs/platform/terms-of-service — p
 Removing the plugin brings back the normal WordPress login. Users created by the plugin have no local password: each of them sets one with "Lost your password?".
 
 == Changelog ==
+
+= Unreleased =
+* Users added in WordPress are created in Faable Auth with their password and role; role changes and deletions follow.
+* The login button's emblem sits on a white disc.
 
 = 1.0.0 =
 * Managed mode for sites hosted on Faable: the connection comes from the environment.
