@@ -36,7 +36,10 @@ final class Login {
 		if ( null === $img ) {
 			$file = dirname( FAABLE_AUTH_FILE ) . '/assets/faable-emblem.png';
 			$png  = is_readable( $file ) ? (string) file_get_contents( $file ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- a local file of the plugin.
-			$img  = '' === $png ? '' : '<img class="faable-auth-emblem" src="data:image/png;base64,' . base64_encode( $png ) . '" alt="" width="20" height="20" style="flex:none" />'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- an image data URI.
+			// A white disc behind the emblem: on the blue primary button the
+			// emblem's own blues would blend into the background.
+			$img  = '' === $png ? '' : '<span class="faable-auth-emblem-disc" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.08)">'
+				. '<img class="faable-auth-emblem" src="data:image/png;base64,' . base64_encode( $png ) . '" alt="" width="16" height="16" style="display:block" /></span>'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- an image data URI.
 		}
 		return $img;
 	}

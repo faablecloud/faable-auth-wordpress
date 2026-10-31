@@ -272,7 +272,7 @@ $opt = wp_cli( 'option get faable_auth_settings --format=json' );
 check( 'save ignores domain/client/secret but keeps the role map', 302 === $r['status'] && ! str_contains( $opt, 'client_evil' ) && ! str_contains( $opt, 'evil.example' ) && str_contains( $opt, 'staff = author' ), $r['status'] . ' ' . $opt );
 $r = ( new Browser() )->get( WP . '/wp-login.php' );
 check( 'managed: Faable-only login', str_contains( $r['body'], 'Log in with Faable' ) && ! str_contains( $r['body'], 'name="pwd"' ) );
-check( 'the login button carries the Faable emblem', (bool) preg_match( '/<a [^>]*faable-auth-button[^>]*><img class="faable-auth-emblem" src="data:image\/png;base64,[A-Za-z0-9+\/=]{100,}"/', $r['body'] ) );
+check( 'the login button carries the Faable emblem on a white disc', (bool) preg_match( '/<a [^>]*faable-auth-button[^>]*><span class="faable-auth-emblem-disc"[^>]*background:#fff[^>]*><img class="faable-auth-emblem" src="data:image\/png;base64,[A-Za-z0-9+\/=]{100,}"/', $r['body'] ) );
 $hops = faable_login( new Browser(), 'alice' );
 check( 'managed: alice signs in through the platform client', 302 === ( $hops[2]['status'] ?? 0 ) && str_contains( $hops[2]['location'] ?? '', '/wp-admin' ), json_encode( array_map( static fn( $h ) => $h['status'] . ' ' . $h['location'], $hops ) ) );
 $alice_id = trim( wp_cli( 'user get alice --field=ID' ) );
