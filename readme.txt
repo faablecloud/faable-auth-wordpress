@@ -4,7 +4,7 @@ Tags: login, sso, openid connect, oidc, authentication
 Requires at least: 6.4
 Tested up to: 6.8
 Requires PHP: 8.1
-Stable tag: 0.1.0
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -94,6 +94,13 @@ Faable terms of service: https://faable.com/docs/platform/terms-of-service — p
 Removing the plugin brings back the normal WordPress login. Users created by the plugin have no local password: each of them sets one with "Lost your password?".
 
 == Changelog ==
+
+= 1.0.0 =
+* Managed mode for sites hosted on Faable: the connection comes from the environment.
+* Roles synced from Faable Auth; the user profile says "Managed by Faable Auth" and links to the user in the Faable dashboard.
+* Settings page with links to the tenant in the Faable dashboard and to the documentation.
+* Faable emblem on the login button.
+* Local service users can keep Application Passwords for the REST API.
 
 = 0.1.0 =
 * First version.

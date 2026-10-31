@@ -56,6 +56,6 @@ sh bin/build-zip.sh          # dist/faable-auth.zip for GitHub releases (with th
 sh bin/build-zip.sh --wporg  # wordpress.org build: no updater, FAABLE_AUTH_DISTRIBUTION = 'wporg'
 ```
 
-A GitHub release must be tagged with the version (`v0.1.0`) and carry `faable-auth.zip` as an asset.
+A GitHub release must be tagged with the version (`v1.0.0`) and carry `faable-auth.zip` as an asset.
 
 License: GPL-2.0-or-later.
