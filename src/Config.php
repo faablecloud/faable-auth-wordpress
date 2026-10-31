@@ -21,6 +21,14 @@
  *   FAABLE_AUTH_REST_CLIENTS   Optional. Comma-separated client ids allowed (empty = any client of the tenant).
  *   FAABLE_AUTH_REST_SCOPE     Optional. A scope/permission every M2M token must carry.
  *
+ * Managed mode (FAABLE_AUTH_MANAGED, a constant the Faable hosting defines
+ * when it loads the plugin as a must-use plugin from its image): the site's
+ * connection belongs to the platform. Domain, client id and secret come ONLY
+ * from the environment/constants (a value left in the settings is ignored),
+ * and the settings page cannot connect, disconnect or edit them. What is the
+ * site owner's to decide stays editable: the role map (unless set by env),
+ * the REST M2M options and federated logout.
+ *
  * @package FaableAuth
  */
 
@@ -48,9 +56,20 @@ final class Config {
 		'FAABLE_AUTH_REST_SCOPE'    => 'rest_scope',
 	);
 
+	/** The connection values a managed site only takes from env/constants. */
+	const MANAGED_KEYS = array( 'FAABLE_AUTH_DOMAIN', 'FAABLE_AUTH_CLIENT_ID', 'FAABLE_AUTH_CLIENT_SECRET' );
+
 	/** The platform tenant that serves the Connect handoff exchange. */
 	const DEFAULT_CONNECT_URL  = 'https://dashboard.faable.com/connect/wordpress';
 	const DEFAULT_EXCHANGE_URL = 'https://faable.auth.faable.link/connect/exchange';
+
+	/**
+	 * Whether the hosting platform manages this site's connection (Faable
+	 * hosting defines FAABLE_AUTH_MANAGED when it loads the plugin).
+	 */
+	public static function is_managed(): bool {
+		return defined( 'FAABLE_AUTH_MANAGED' ) && FAABLE_AUTH_MANAGED;
+	}
 
 	/**
 	 * Saved options.
@@ -106,6 +125,11 @@ final class Config {
 		}
 		$key = self::KEYS[ $name ] ?? null;
 		if ( null === $key ) {
+			return '';
+		}
+		// Managed: the connection is the platform's, never a leftover option
+		// (a site connected by hand before it moved to Faable, say).
+		if ( self::is_managed() && in_array( $name, self::MANAGED_KEYS, true ) ) {
 			return '';
 		}
 		$o = self::options();
@@ -164,7 +188,7 @@ final class Config {
 	 * Whether a stored secret exists but cannot be decrypted (salts rotated).
 	 */
 	public static function secret_unreadable(): bool {
-		if ( self::is_locked( 'FAABLE_AUTH_CLIENT_SECRET' ) ) {
+		if ( self::is_managed() || self::is_locked( 'FAABLE_AUTH_CLIENT_SECRET' ) ) {
 			return false;
 		}
 		$enc = (string) ( self::options()['client_secret_enc'] ?? '' );

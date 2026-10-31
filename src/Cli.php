@@ -57,6 +57,7 @@ final class Cli {
 		};
 		$rows = array(
 			array( 'key' => 'mode', 'value' => Login::mode(), 'source' => '' ),
+			array( 'key' => 'managed', 'value' => Config::is_managed() ? 'yes (Faable hosting)' : 'no', 'source' => '' ),
 			array( 'key' => 'break_glass', 'value' => BreakGlass::from_environment() ? 'on' : 'off', 'source' => '' ),
 			array( 'key' => 'domain', 'value' => Config::domain(), 'source' => $src( 'FAABLE_AUTH_DOMAIN' ) ),
 			array( 'key' => 'client_id', 'value' => Config::get( 'FAABLE_AUTH_CLIENT_ID' ), 'source' => $src( 'FAABLE_AUTH_CLIENT_ID' ) ),

@@ -13,6 +13,11 @@
  *     faable.auth.faable.link/connect/exchange, which answers
  *     {auth_domain, client_id, client_secret, project_id, account_id}.
  *
+ * Managed mode (Config::is_managed(), Faable hosting): the connection is the
+ * platform's. The page says so, offers no Connect/Disconnect and shows the
+ * domain and client read-only; the admin-post handlers that would change the
+ * connection refuse. The role map, REST and logout options stay editable.
+ *
  * @package FaableAuth
  */
 
@@ -100,6 +105,7 @@ final class Admin {
 	 */
 	public static function connect_start(): void {
 		self::guard( 'faable_auth_connect' );
+		self::refuse_if_managed();
 		$state    = Pkce::random();
 		$verifier = Pkce::random();
 		set_transient(
@@ -124,6 +130,7 @@ final class Admin {
 		if ( ! current_user_can( self::CAP ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'faable-auth' ), 403 );
 		}
+		self::refuse_if_managed();
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- `state` (bound to this admin, single use) is the CSRF protection of a cross-site return.
 		$state = isset( $_GET['state'] ) ? sanitize_text_field( wp_unslash( $_GET['state'] ) ) : '';
 		$code  = isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : '';
@@ -203,8 +210,13 @@ final class Admin {
 			'FAABLE_AUTH_REST_CLIENTS'  => 'rest_clients',
 			'FAABLE_AUTH_REST_SCOPE'    => 'rest_scope',
 		);
+		$managed = Config::is_managed();
 		foreach ( $fields as $const => $key ) {
 			if ( Config::is_locked( $const ) || ! isset( $in[ $key ] ) ) {
+				continue;
+			}
+			// Managed: domain and client are the platform's, whatever is posted.
+			if ( $managed && in_array( $const, Config::MANAGED_KEYS, true ) ) {
 				continue;
 			}
 			$values[ $key ] = sanitize_text_field( (string) $in[ $key ] );
@@ -216,7 +228,7 @@ final class Admin {
 			}
 			$values['domain'] = $normalized;
 		}
-		if ( ! Config::is_locked( 'FAABLE_AUTH_CLIENT_SECRET' ) && isset( $in['client_secret'] ) && '' !== trim( (string) $in['client_secret'] ) ) {
+		if ( ! $managed && ! Config::is_locked( 'FAABLE_AUTH_CLIENT_SECRET' ) && isset( $in['client_secret'] ) && '' !== trim( (string) $in['client_secret'] ) ) {
 			$values['client_secret_enc'] = Config::encrypt_secret( trim( (string) $in['client_secret'] ) );
 			$values['source']            = 'manual';
 		}
@@ -235,6 +247,7 @@ final class Admin {
 	 */
 	public static function disconnect(): void {
 		self::guard( 'faable_auth_disconnect' );
+		self::refuse_if_managed();
 		Config::save(
 			array(
 				'domain'            => '',
@@ -257,6 +270,16 @@ final class Admin {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'faable-auth' ), 403 );
 		}
 		check_admin_referer( $action );
+	}
+
+	/**
+	 * The connection of a managed site cannot be changed from WordPress: it
+	 * is created and kept by the hosting platform.
+	 */
+	private static function refuse_if_managed(): void {
+		if ( Config::is_managed() ) {
+			wp_die( esc_html__( 'This site is managed by Faable: its Faable Auth connection cannot be changed here.', 'faable-auth' ), 403 );
+		}
 	}
 
 	/**
@@ -283,6 +306,9 @@ final class Admin {
 		if ( is_array( $notice ) ) {
 			delete_transient( $key );
 			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', 'error' === $notice[0] ? 'error' : 'success', esc_html( (string) $notice[1] ) );
+		}
+		if ( Config::is_managed() && ! Config::is_configured() ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Faable Auth is managed by Faable on this site, but its configuration is incomplete: the native login is active. Contact Faable support.', 'faable-auth' ) . '</p></div>';
 		}
 		if ( Config::secret_unreadable() ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Faable Auth: the stored client secret cannot be decrypted (the site salts changed). The native login is active again; reconnect in Settings → Faable Auth.', 'faable-auth' ) . '</p></div>';
@@ -327,11 +353,17 @@ final class Admin {
 			return;
 		}
 		$configured = Config::is_configured();
+		$managed    = Config::is_managed();
 		$mode       = Login::mode();
 		$o          = Config::options();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Faable Auth', 'faable-auth' ); ?></h1>
+
+			<?php if ( $managed ) : ?>
+				<div class="notice notice-info inline faable-auth-managed"><p><strong><?php esc_html_e( 'Managed by Faable', 'faable-auth' ); ?></strong> — <?php esc_html_e( 'this site signs in with Faable Auth.', 'faable-auth' ); ?></p>
+					<p><?php esc_html_e( 'Faable created this site\'s client in your project\'s Faable Auth tenant and keeps it connected while the site is hosted on Faable. Who can sign in, and with which role, is managed in Faable Auth (roles of the tenant).', 'faable-auth' ); ?></p></div>
+			<?php endif; ?>
 
 			<h2><?php esc_html_e( 'Connection', 'faable-auth' ); ?></h2>
 			<?php if ( $configured ) : ?>
@@ -355,7 +387,7 @@ final class Admin {
 				echo esc_html( sprintf( __( 'Login mode: %s.', 'faable-auth' ), $labels[ $mode ] ) );
 				?>
 			</p>
-			<?php if ( ! Config::is_locked( 'FAABLE_AUTH_CLIENT_ID' ) ) : ?>
+			<?php if ( ! $managed && ! Config::is_locked( 'FAABLE_AUTH_CLIENT_ID' ) ) : ?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-right:8px">
 					<input type="hidden" name="action" value="faable_auth_connect" />
 					<?php wp_nonce_field( 'faable_auth_connect' ); ?>
@@ -374,6 +406,18 @@ final class Admin {
 				<input type="hidden" name="action" value="faable_auth_save" />
 				<?php wp_nonce_field( 'faable_auth_save' ); ?>
 
+				<?php if ( $managed ) : ?>
+				<h2><?php esc_html_e( 'Client', 'faable-auth' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr><th scope="row"><?php esc_html_e( 'Tenant domain', 'faable-auth' ); ?></th><td><code><?php echo esc_html( Config::domain() ); ?></code></td></tr>
+					<tr><th scope="row"><?php esc_html_e( 'Client ID', 'faable-auth' ); ?></th><td><code><?php echo esc_html( Config::get( 'FAABLE_AUTH_CLIENT_ID' ) ); ?></code></td></tr>
+					<tr><th scope="row"><?php esc_html_e( 'Client secret', 'faable-auth' ); ?></th><td><?php esc_html_e( 'Set by Faable.', 'faable-auth' ); ?></td></tr>
+					<tr><th scope="row"><?php esc_html_e( 'Redirect URI', 'faable-auth' ); ?></th><td><code><?php echo esc_html( Config::redirect_uri() ); ?></code></td></tr>
+					<?php
+					self::row( 'FAABLE_AUTH_AUDIENCE', 'audience', __( 'API audience (optional)', 'faable-auth' ), __( 'An API of your tenant with "include roles in ID token" on. Empty: roles are read from the Management API.', 'faable-auth' ) );
+					?>
+				</table>
+				<?php else : ?>
 				<h2><?php esc_html_e( 'Manual configuration', 'faable-auth' ); ?></h2>
 				<p><?php esc_html_e( 'Only if you cannot use "Connect with Faable": create a regular web client in your Faable Auth tenant and register this redirect URI:', 'faable-auth' ); ?>
 					<code><?php echo esc_html( Config::redirect_uri() ); ?></code></p>
@@ -393,6 +437,7 @@ final class Admin {
 					self::row( 'FAABLE_AUTH_AUDIENCE', 'audience', __( 'API audience (optional)', 'faable-auth' ), __( 'An API of your tenant with "include roles in ID token" on. Empty: roles are read from the Management API.', 'faable-auth' ) );
 					?>
 				</table>
+				<?php endif; ?>
 
 				<h2><?php esc_html_e( 'Roles', 'faable-auth' ); ?></h2>
 				<p><?php esc_html_e( 'One "Faable Auth role = WordPress role" per line. A user whose roles map to nothing is refused. Roles are re-synced on every login.', 'faable-auth' ); ?></p>
@@ -423,7 +468,7 @@ final class Admin {
 				<li><?php esc_html_e( 'Add this line to wp-config.php to bring back the password form (remove it afterwards):', 'faable-auth' ); ?> <code>define( 'FAABLE_AUTH_BREAK_GLASS', true );</code></li>
 				<li><?php esc_html_e( 'Or run this WP-CLI command for a one-time login URL valid 10 minutes:', 'faable-auth' ); ?> <code>wp faable-auth login-link &lt;user&gt;</code></li>
 			</ol>
-			<?php if ( ! empty( $o['connected_at'] ) ) : ?>
+			<?php if ( ! $managed && ! empty( $o['connected_at'] ) ) : ?>
 				<p class="description">
 					<?php
 					/* translators: %s: date */

@@ -42,7 +42,7 @@ If Faable Auth cannot be reached, nobody can log in. There are two ways in, and 
 
 = Configuration =
 
-**On Faable hosting** nothing needs to be set: the platform gives the site these environment variables.
+**On Faable hosting** nothing needs to be set and there is nothing to connect: when the site is installed, Faable creates its OIDC client in the project's Faable Auth tenant, gives the site these environment variables and loads the plugin as a must-use plugin from its image. While the site is hosted on Faable the plugin cannot be deactivated or disconnected: its settings page says "Managed by Faable" and shows the connection read-only. The role map, the headless (REST) options and federated logout stay editable.
 
 * `FAABLE_AUTH_DOMAIN`: the tenant URL, e.g. `https://acme.auth.faable.link` (or its custom domain). It is the issuer of the tokens, without a trailing slash.
 * `FAABLE_AUTH_CLIENT_ID`, `FAABLE_AUTH_CLIENT_SECRET`: the site's OIDC client in that tenant.

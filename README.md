@@ -17,6 +17,18 @@ define( 'FAABLE_AUTH_BREAK_GLASS', true );
 wp faable-auth login-link <user>
 ```
 
+## Managed mode (Faable hosting)
+
+The WordPress blueprint overlay ships this plugin in its image and loads it as a must-use plugin when
+the platform has configured the site (`FAABLE_AUTH_CLIENT_ID` in the environment), defining
+`FAABLE_AUTH_MANAGED` and `FAABLE_AUTH_DISABLE_UPDATER`. With `FAABLE_AUTH_MANAGED`:
+
+- domain, client id and secret come only from the environment/constants (a stored option is ignored);
+- the settings page shows "Managed by Faable", with no Connect/Disconnect and the connection read-only;
+  the `faable_auth_connect*`/`faable_auth_disconnect` handlers answer 403;
+- role map (unless `FAABLE_AUTH_ROLE_MAP` is set), REST M2M options and federated logout stay editable;
+- deleting a regular copy of the plugin does not wipe the settings (`uninstall.php`).
+
 ## Layout
 
 | File | What |
