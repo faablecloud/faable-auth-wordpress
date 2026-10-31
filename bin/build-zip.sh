@@ -11,6 +11,7 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/faable-auth" "$OUT"
 cp "$ROOT/faable-auth.php" "$ROOT/uninstall.php" "$ROOT/readme.txt" "$TMP/faable-auth/"
 cp -R "$ROOT/src" "$TMP/faable-auth/src"
+cp -R "$ROOT/assets" "$TMP/faable-auth/assets"
 
 if [ "${1:-}" = "--wporg" ]; then
   rm "$TMP/faable-auth/src/Updater.php"

@@ -23,6 +23,24 @@ final class Login {
 	const META_IDTOK  = 'faable_auth_id_token';
 	const UNUSABLE_PW = '*faable-auth*';
 
+	/** The login buttons: full width, emblem and label centred on one line. */
+	const BUTTON_STYLE = 'width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center';
+
+	/**
+	 * The Faable emblem for the login buttons, inlined as a data URI: a host
+	 * may load the plugin from outside the web root (Faable hosting loads it
+	 * from its image), where a plugins_url() would point at nothing.
+	 */
+	public static function emblem(): string {
+		static $img = null;
+		if ( null === $img ) {
+			$file = dirname( FAABLE_AUTH_FILE ) . '/assets/faable-emblem.png';
+			$png  = is_readable( $file ) ? (string) file_get_contents( $file ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- a local file of the plugin.
+			$img  = '' === $png ? '' : '<img class="faable-auth-emblem" src="data:image/png;base64,' . base64_encode( $png ) . '" alt="" width="20" height="20" style="flex:none" />'; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- an image data URI.
+		}
+		return $img;
+	}
+
 	/**
 	 * Current login mode.
 	 */
@@ -473,8 +491,8 @@ final class Login {
 		echo '<p class="faable-auth-break-glass" style="margin:0 0 16px;padding:8px;background:#fcf0f1;border-left:4px solid #d63638">'
 			. esc_html__( 'Emergency access is on (FAABLE_AUTH_BREAK_GLASS). Turn it off once Faable Auth is back.', 'faable-auth' )
 			. '</p>';
-		echo '<p style="margin-bottom:16px"><a class="button button-large" style="width:100%;text-align:center" href="' . esc_url( self::start_url( $redirect_to ) ) . '">'
-			. esc_html__( 'Log in with Faable', 'faable-auth' ) . '</a></p>';
+		echo '<p style="margin-bottom:16px"><a class="button button-large faable-auth-button" style="' . esc_attr( self::BUTTON_STYLE ) . '" href="' . esc_url( self::start_url( $redirect_to ) ) . '">'
+			. self::emblem() . esc_html__( 'Log in with Faable', 'faable-auth' ) . '</a></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- emblem() is a fixed <img> built from our own file.
 	}
 
 	/**
@@ -507,7 +525,9 @@ final class Login {
 			: self::start_url( $redirect_to );
 		echo '<div id="loginform" class="faable-auth-login" style="text-align:center">';
 		echo '<p style="margin-bottom:16px">' . esc_html__( 'This site uses Faable to sign in.', 'faable-auth' ) . '</p>';
-		echo '<p><a class="button button-primary button-large" style="float:none;width:100%" href="' . esc_url( $retry ) . '"' . ( $interim ? ' target="_top"' : '' ) . '>'
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- emblem() is a fixed <img> built from our own file.
+		echo '<p><a class="button button-primary button-large faable-auth-button" style="float:none;' . esc_attr( self::BUTTON_STYLE ) . '" href="' . esc_url( $retry ) . '"' . ( $interim ? ' target="_top"' : '' ) . '>'
+			. self::emblem()
 			. ( 'no_role' === $error_code ? esc_html__( 'Use another account', 'faable-auth' ) : esc_html__( 'Log in with Faable', 'faable-auth' ) )
 			. '</a></p>';
 		echo '</div>';

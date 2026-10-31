@@ -253,6 +253,9 @@ wp_cli( "config set FAABLE_AUTH_DOMAIN 'http://idp.test:8080'" );
 wp_cli( 'config set FAABLE_AUTH_CLIENT_ID client_wp' );
 wp_cli( 'config set FAABLE_AUTH_CLIENT_SECRET secret_wp_123' );
 wp_cli( 'config set FAABLE_AUTH_MANAGED true --raw' );
+wp_cli( 'config set FAABLE_AUTH_PROJECT_ID project_6a8ebd6160324d4631c12edc' );
+wp_cli( 'config set FAABLE_AUTH_ACCOUNT_ID account_6aab075db8185a5d3bd64caf' );
+wp_cli( 'option patch update faable_auth_settings account_id account_000000000000000000000bad' );
 sleep( 3 );
 $st = wp_cli( 'faable-auth status --format=json' );
 check( 'status says managed, client from constants', str_contains( $st, 'yes (Faable hosting)' ) && str_contains( $st, '"value":"client_wp","source":"env\/constant"' ), $st );
@@ -260,6 +263,8 @@ $r = $e->get( WP . '/wp-admin/options-general.php?page=faable-auth' );
 check( 'settings page says Managed by Faable', 200 === $r['status'] && str_contains( $r['body'], 'Managed by Faable' ) && str_contains( $r['body'], 'this site signs in with Faable Auth.' ), substr( strip_tags( $r['body'] ), 0, 300 ) );
 check( '... with no Connect or Disconnect', ! str_contains( $r['body'], 'value="faable_auth_connect"' ) && ! str_contains( $r['body'], 'value="faable_auth_disconnect"' ) );
 check( '... and the connection read-only (no domain/client/secret inputs)', ! str_contains( $r['body'], 'name="faable_auth[domain]"' ) && ! str_contains( $r['body'], 'name="faable_auth[client_id]"' ) && ! str_contains( $r['body'], 'name="faable_auth[client_secret]"' ) && str_contains( $r['body'], 'client_wp' ) && ! str_contains( $r['body'], 'client_stale' ) );
+check( '... with the tenant link from the platform env, not the stale option', str_contains( $r['body'], 'href="https://dashboard.faable.com/auth/project_6a8ebd6160324d4631c12edc/account/account_6aab075db8185a5d3bd64caf"' ) && ! str_contains( $r['body'], 'account_000000000000000000000bad' ) && str_contains( $r['body'], 'Manage users and roles in Faable' ) );
+check( '... and the documentation link', str_contains( $r['body'], 'href="https://faable.com/docs/auth/integrations/wordpress"' ) );
 check( '... the role map stays editable', (bool) preg_match( '/<textarea name="faable_auth\[role_map\]"[^>]*>/', $r['body'], $ta ) && ! str_contains( $ta[0] ?? '', 'readonly' ) );
 preg_match( '/name="action" value="faable_auth_save".*?name="_wpnonce" value="([^"]+)"/s', $r['body'], $m );
 $r = $e->post( WP . '/wp-admin/admin-post.php', array( 'action' => 'faable_auth_save', '_wpnonce' => $m[1] ?? '', 'faable_auth' => array( 'domain' => 'https://evil.example', 'client_id' => 'client_evil', 'client_secret' => 'evil', 'role_map' => "editor = editor\nstaff = author" ) ) );
@@ -267,6 +272,7 @@ $opt = wp_cli( 'option get faable_auth_settings --format=json' );
 check( 'save ignores domain/client/secret but keeps the role map', 302 === $r['status'] && ! str_contains( $opt, 'client_evil' ) && ! str_contains( $opt, 'evil.example' ) && str_contains( $opt, 'staff = author' ), $r['status'] . ' ' . $opt );
 $r = ( new Browser() )->get( WP . '/wp-login.php' );
 check( 'managed: Faable-only login', str_contains( $r['body'], 'Log in with Faable' ) && ! str_contains( $r['body'], 'name="pwd"' ) );
+check( 'the login button carries the Faable emblem', (bool) preg_match( '/<a [^>]*faable-auth-button[^>]*><img class="faable-auth-emblem" src="data:image\/png;base64,[A-Za-z0-9+\/=]{100,}"/', $r['body'] ) );
 $hops = faable_login( new Browser(), 'alice' );
 check( 'managed: alice signs in through the platform client', 302 === ( $hops[2]['status'] ?? 0 ) && str_contains( $hops[2]['location'] ?? '', '/wp-admin' ), json_encode( array_map( static fn( $h ) => $h['status'] . ' ' . $h['location'], $hops ) ) );
 // Managed but the platform's client id missing: never fall back to the option.
@@ -279,7 +285,7 @@ check( '... the page says the managed configuration is incomplete', str_contains
 preg_match( '/name="action" value="faable_auth_save".*?name="_wpnonce" value="([^"]+)"/s', $r['body'], $m );
 $e->post( WP . '/wp-admin/admin-post.php', array( 'action' => 'faable_auth_save', '_wpnonce' => $m[1] ?? '', 'faable_auth' => array( 'client_id' => 'client_evil' ) ) );
 check( '... and a posted client id is still ignored', ! str_contains( wp_cli( 'option get faable_auth_settings --format=json' ), 'client_evil' ) );
-foreach ( array( 'FAABLE_AUTH_MANAGED', 'FAABLE_AUTH_DOMAIN', 'FAABLE_AUTH_CLIENT_SECRET' ) as $c ) {
+foreach ( array( 'FAABLE_AUTH_MANAGED', 'FAABLE_AUTH_DOMAIN', 'FAABLE_AUTH_CLIENT_SECRET', 'FAABLE_AUTH_PROJECT_ID', 'FAABLE_AUTH_ACCOUNT_ID' ) as $c ) {
 	wp_cli( "config delete $c" );
 }
 

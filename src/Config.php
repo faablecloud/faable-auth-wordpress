@@ -63,6 +63,10 @@ final class Config {
 	const DEFAULT_CONNECT_URL  = 'https://dashboard.faable.com/connect/wordpress';
 	const DEFAULT_EXCHANGE_URL = 'https://faable.auth.faable.link/connect/exchange';
 
+	/** Where the tenant is managed, and the plugin's documentation. */
+	const DASHBOARD_URL = 'https://dashboard.faable.com';
+	const DOCS_URL      = 'https://faable.com/docs/auth/integrations/wordpress';
+
 	/**
 	 * Whether the hosting platform manages this site's connection (Faable
 	 * hosting defines FAABLE_AUTH_MANAGED when it loads the plugin).
@@ -217,6 +221,25 @@ final class Config {
 	 */
 	public static function redirect_uri(): string {
 		return home_url( '/wp-login.php?faable-auth=callback' );
+	}
+
+	/**
+	 * The tenant's page in the Faable dashboard, where who signs in and with
+	 * which role is managed. Project and tenant come from the environment on
+	 * Faable hosting (FAABLE_AUTH_PROJECT_ID / FAABLE_AUTH_ACCOUNT_ID, set by
+	 * the installation) or from "Connect with Faable"; without them, the
+	 * dashboard's Faable Auth home.
+	 */
+	public static function manage_url(): string {
+		$o       = self::is_managed() ? array() : self::options();
+		$project = self::external( 'FAABLE_AUTH_PROJECT_ID' ) ?? (string) ( $o['project_id'] ?? '' );
+		$account = self::external( 'FAABLE_AUTH_ACCOUNT_ID' ) ?? (string) ( $o['account_id'] ?? '' );
+		$project = preg_replace( '/^team_/', 'project_', trim( $project ) );
+		$account = trim( $account );
+		if ( preg_match( '/^project_[a-f0-9]{24}$/', $project ) && preg_match( '/^account_[a-f0-9]{24}$/', $account ) ) {
+			return self::DASHBOARD_URL . '/auth/' . $project . '/account/' . $account;
+		}
+		return self::DASHBOARD_URL . '/auth';
 	}
 
 	/**

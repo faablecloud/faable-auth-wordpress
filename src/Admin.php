@@ -44,6 +44,20 @@ final class Admin {
 		add_action( 'admin_post_faable_auth_disconnect', array( __CLASS__, 'disconnect' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notices' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( FAABLE_AUTH_FILE ), array( __CLASS__, 'action_links' ) );
+		add_filter( 'plugin_row_meta', array( __CLASS__, 'row_meta' ), 10, 2 );
+	}
+
+	/**
+	 * Documentation link under the plugin's description.
+	 *
+	 * @param array  $links Links.
+	 * @param string $file  Plugin file.
+	 */
+	public static function row_meta( $links, $file ) {
+		if ( plugin_basename( FAABLE_AUTH_FILE ) === $file ) {
+			$links[] = '<a href="' . esc_url( Config::DOCS_URL ) . '" target="_blank" rel="noopener">' . esc_html__( 'Documentation', 'faable-auth' ) . '</a>';
+		}
+		return $links;
 	}
 
 	/**
@@ -185,6 +199,7 @@ final class Admin {
 				'client_id'         => $id,
 				'client_secret_enc' => Config::encrypt_secret( $secret ),
 				'account_id'        => sanitize_text_field( (string) ( $data['account_id'] ?? '' ) ),
+				'project_id'        => sanitize_text_field( (string) ( $data['project_id'] ?? '' ) ),
 				'source'            => 'connect',
 				'connected_at'      => time(),
 			)
@@ -254,6 +269,7 @@ final class Admin {
 				'client_id'         => '',
 				'client_secret_enc' => '',
 				'account_id'        => '',
+				'project_id'        => '',
 				'source'            => '',
 			)
 		);
@@ -363,6 +379,14 @@ final class Admin {
 			<?php if ( $managed ) : ?>
 				<div class="notice notice-info inline faable-auth-managed"><p><strong><?php esc_html_e( 'Managed by Faable', 'faable-auth' ); ?></strong> — <?php esc_html_e( 'this site signs in with Faable Auth.', 'faable-auth' ); ?></p>
 					<p><?php esc_html_e( 'Faable created this site\'s client in your project\'s Faable Auth tenant and keeps it connected while the site is hosted on Faable. Who can sign in, and with which role, is managed in Faable Auth (roles of the tenant).', 'faable-auth' ); ?></p></div>
+			<?php endif; ?>
+
+			<?php if ( $configured ) : ?>
+				<p class="faable-auth-manage">
+					<a class="button button-primary" href="<?php echo esc_url( Config::manage_url() ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Manage users and roles in Faable', 'faable-auth' ); ?> <span aria-hidden="true">↗</span></a>
+					<a class="button" href="<?php echo esc_url( Config::DOCS_URL ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Documentation', 'faable-auth' ); ?></a>
+				</p>
+				<p class="description"><?php esc_html_e( 'Opens your Faable Auth tenant in the Faable dashboard: invite users, give them a role (administrator, editor, author…) and see who signed in.', 'faable-auth' ); ?></p>
 			<?php endif; ?>
 
 			<h2><?php esc_html_e( 'Connection', 'faable-auth' ); ?></h2>
