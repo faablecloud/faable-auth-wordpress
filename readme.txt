@@ -1,5 +1,5 @@
 === Faable Auth ===
-Contributors: faable
+Contributors: boyander
 Tags: login, sso, openid connect, oidc, authentication
 Requires at least: 6.4
 Tested up to: 7.1
