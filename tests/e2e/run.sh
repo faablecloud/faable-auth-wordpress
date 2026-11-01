@@ -59,4 +59,9 @@ done
 cli wp --path=/var/www/html core install --url=http://wp.test --title=E2E \
   --admin_user=admin --admin_password=admin-pw --admin_email=admin@example.com --skip-email >/dev/null
 cli wp --path=/var/www/html plugin activate faable-auth
+# A plugin that hooks rest_pre_dispatch the way acf-to-rest-api does (seen on
+# a real site, 01-11-2026): it loads after faable-auth and must not undo the
+# REST user guard.
+cli sh -c 'mkdir -p /var/www/html/wp-content/plugins/void-pre-dispatch && cp /e2e/void-pre-dispatch.php /var/www/html/wp-content/plugins/void-pre-dispatch/'
+cli wp --path=/var/www/html plugin activate void-pre-dispatch
 cli php /e2e/browser.php

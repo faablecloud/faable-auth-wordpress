@@ -31,8 +31,15 @@ final class UserEnumeration {
 	 */
 	const ROUTES = '#^/wp/v2/users(?:/\d+)?/?$#i';
 
+	/**
+	 * Late, so a plugin that hooks this filter with add_action (its callback
+	 * returns null) can't wipe the refusal: acf-to-rest-api 3.x does it at 10,
+	 * from plugins_loaded, after this plugin.
+	 */
+	const PRIORITY = 1000;
+
 	public static function init(): void {
-		add_filter( 'rest_pre_dispatch', array( __CLASS__, 'guard' ), 10, 3 );
+		add_filter( 'rest_pre_dispatch', array( __CLASS__, 'guard' ), self::PRIORITY, 3 );
 	}
 
 	/**

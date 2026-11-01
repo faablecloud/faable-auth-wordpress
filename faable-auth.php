@@ -3,7 +3,7 @@
  * Plugin Name:       Faable Auth
  * Plugin URI:        https://github.com/faablecloud/faable-auth-wordpress
  * Description:       Sign in to WordPress with Faable Auth (OpenID Connect). Replaces the password login, syncs roles on every login and accepts Faable machine-to-machine tokens on the REST API.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Faable
@@ -23,7 +23,7 @@ if ( defined( 'FAABLE_AUTH_VERSION' ) ) {
 	return;
 }
 
-define( 'FAABLE_AUTH_VERSION', '1.1.0' );
+define( 'FAABLE_AUTH_VERSION', '1.1.1' );
 define( 'FAABLE_AUTH_FILE', __FILE__ );
 // 'github' = this build updates itself from GitHub releases (src/Updater.php).
 // The wordpress.org build (bin/build-zip.sh --wporg) rewrites it to 'wporg'.
