@@ -17,7 +17,7 @@
 
 namespace FaableAuth;
 
-defined( 'ABSPATH' ) || defined( 'FAABLE_AUTH_TESTING' ) || exit;
+defined( 'ABSPATH' ) || exit;
 
 /**
  * Break-glass logic.

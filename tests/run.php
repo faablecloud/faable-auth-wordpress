@@ -11,6 +11,7 @@
  */
 
 define( 'FAABLE_AUTH_TESTING', true );
+define( 'ABSPATH', __DIR__ . '/' ); // the classes refuse to load outside WordPress.
 $root = dirname( __DIR__ );
 foreach ( array( 'Jwt', 'Pkce', 'RoleMapper', 'BreakGlass', 'LoginLink', 'Crypto' ) as $c ) {
 	require $root . '/src/' . $c . '.php';

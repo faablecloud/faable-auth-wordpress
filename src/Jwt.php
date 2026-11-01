@@ -11,7 +11,7 @@
 
 namespace FaableAuth;
 
-defined( 'ABSPATH' ) || defined( 'FAABLE_AUTH_TESTING' ) || exit;
+defined( 'ABSPATH' ) || exit;
 
 /**
  * Thrown when a token fails any check. The message is safe to log, never to

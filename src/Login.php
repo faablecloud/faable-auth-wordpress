@@ -45,6 +45,30 @@ final class Login {
 	}
 
 	/**
+	 * What wp_kses() lets through of emblem(), for escaping it where it is
+	 * printed: the two tags, their attributes and the data: URI of the image.
+	 */
+	const EMBLEM_HTML = array(
+		'span' => array(
+			'class' => true,
+			'style' => true,
+		),
+		'img'  => array(
+			'class'  => true,
+			'src'    => true,
+			'alt'    => true,
+			'width'  => true,
+			'height' => true,
+			'style'  => true,
+		),
+	);
+
+	/** @return string[] */
+	public static function emblem_protocols(): array {
+		return array_merge( wp_allowed_protocols(), array( 'data' ) );
+	}
+
+	/**
 	 * Current login mode.
 	 */
 	public static function mode(): string {
@@ -529,7 +553,7 @@ final class Login {
 			. esc_html__( 'Emergency access is on (FAABLE_AUTH_BREAK_GLASS). Turn it off once Faable Auth is back.', 'faable-auth' )
 			. '</p>';
 		echo '<p style="margin-bottom:16px"><a class="button button-large faable-auth-button" style="' . esc_attr( self::BUTTON_STYLE ) . '" href="' . esc_url( self::start_url( $redirect_to ) ) . '">'
-			. self::emblem() . esc_html__( 'Log in with Faable', 'faable-auth' ) . '</a></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- emblem() is a fixed <img> built from our own file.
+			. wp_kses( self::emblem(), self::EMBLEM_HTML, self::emblem_protocols() ) . esc_html__( 'Log in with Faable', 'faable-auth' ) . '</a></p>';
 	}
 
 	/**
@@ -562,9 +586,8 @@ final class Login {
 			: self::start_url( $redirect_to );
 		echo '<div id="loginform" class="faable-auth-login" style="text-align:center">';
 		echo '<p style="margin-bottom:16px">' . esc_html__( 'This site uses Faable to sign in.', 'faable-auth' ) . '</p>';
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- emblem() is a fixed <img> built from our own file.
 		echo '<p><a class="button button-primary button-large faable-auth-button" style="float:none;' . esc_attr( self::BUTTON_STYLE ) . '" href="' . esc_url( $retry ) . '"' . ( $interim ? ' target="_top"' : '' ) . '>'
-			. self::emblem()
+			. wp_kses( self::emblem(), self::EMBLEM_HTML, self::emblem_protocols() )
 			. ( 'no_role' === $error_code ? esc_html__( 'Use another account', 'faable-auth' ) : esc_html__( 'Log in with Faable', 'faable-auth' ) )
 			. '</a></p>';
 		echo '</div>';

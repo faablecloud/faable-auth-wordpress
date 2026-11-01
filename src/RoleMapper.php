@@ -12,7 +12,7 @@
 
 namespace FaableAuth;
 
-defined( 'ABSPATH' ) || defined( 'FAABLE_AUTH_TESTING' ) || exit;
+defined( 'ABSPATH' ) || exit;
 
 /**
  * Role mapping.

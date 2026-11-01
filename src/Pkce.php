@@ -7,7 +7,7 @@
 
 namespace FaableAuth;
 
-defined( 'ABSPATH' ) || defined( 'FAABLE_AUTH_TESTING' ) || exit;
+defined( 'ABSPATH' ) || exit;
 
 /**
  * PKCE and one-time value helpers.

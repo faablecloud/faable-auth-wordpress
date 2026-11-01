@@ -79,7 +79,7 @@ final class Admin {
 		if ( 'faable' === $kind ) {
 			$sub = (string) get_user_meta( $user->ID, Login::META_SUB, true );
 			$url = current_user_can( self::CAP ) ? Config::user_url( $sub ) : '';
-			echo '<p><span class="faable-auth-managed-user" style="display:inline-flex;align-items:center;gap:6px;font-weight:600">' . Login::emblem() . esc_html__( 'Managed by Faable Auth', 'faable-auth' ) . '</span></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- emblem() is a fixed <img> built from our own file.
+			echo '<p><span class="faable-auth-managed-user" style="display:inline-flex;align-items:center;gap:6px;font-weight:600">' . wp_kses( Login::emblem(), Login::EMBLEM_HTML, Login::emblem_protocols() ) . esc_html__( 'Managed by Faable Auth', 'faable-auth' ) . '</span></p>';
 			echo '<p class="description">' . esc_html__( 'This user signs in with Faable. Email and password are managed in Faable Auth. The role is synced from the tenant on every login, and a role changed here is changed there too.', 'faable-auth' ) . '</p>';
 			if ( '' !== $url ) {
 				echo '<p><a class="button" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Open in the Faable dashboard', 'faable-auth' ) . ' <span aria-hidden="true">↗</span></a></p>';
