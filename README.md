@@ -1,7 +1,35 @@
+<p align="center">
+  <a href="https://faable.com/docs/auth/integrations/wordpress">
+    <img src=".github/assets/cover.png" alt="Faable Auth for WordPress: sign in to WordPress with Faable Auth" width="100%">
+  </a>
+</p>
+
 # Faable Auth for WordPress
 
-WordPress plugin that makes a site sign in through [Faable Auth](https://faable.com) (OpenID Connect,
-Authorization Code + PKCE). The user-facing documentation is in [`readme.txt`](readme.txt).
+A WordPress plugin that signs users in through [Faable Auth](https://faable.com/docs/auth) with
+OpenID Connect (Authorization Code + PKCE). Who can get in, and with which role, is decided in your
+Auth tenant.
+
+- **Sign in with Faable only.** `wp-login.php` shows a **Log in with Faable** button, and password
+  logins, resets, registration and XML-RPC authentication are turned off.
+- **Roles from Faable Auth,** synced on every login.
+- **Headless front-ends.** The REST API accepts machine-to-machine access tokens.
+- **Emergency access** from day one, in case Faable Auth cannot be reached.
+
+It works on any host and with any Faable Auth plan, including Free. It needs WordPress 6.4 or later
+and PHP 8.1 or later. Multisite is not supported yet.
+
+📚 Documentation: **[faable.com/docs/auth/integrations/wordpress](https://faable.com/docs/auth/integrations/wordpress)**.
+The plugin's own reference is in [`readme.txt`](readme.txt).
+
+## Install
+
+1. Download `faable-auth.zip` from the [latest release](https://github.com/faablecloud/faable-auth-wordpress/releases/latest).
+2. In WordPress, go to **Plugins → Add New → Upload Plugin**, then install and activate it.
+3. Go to **Settings → Faable Auth** and press **Connect with Faable**.
+
+On [Faable Deploy](https://faable.com/docs/deploy) the WordPress image ships the plugin already
+connected, so there is nothing to install.
 
 ## Emergency access
 
@@ -58,4 +86,15 @@ sh bin/build-zip.sh --wporg  # wordpress.org build: no updater, FAABLE_AUTH_DIST
 
 A GitHub release must be tagged with the version (`v1.0.0`) and carry `faable-auth.zip` as an asset.
 
-License: GPL-2.0-or-later.
+## Support
+
+- **Documentation:** [faable.com/docs](https://faable.com/docs)
+- **Help with your account or deployments:** [support@faable.com](mailto:support@faable.com) or the
+  [support page](https://faable.com/docs/platform/support)
+- **Bugs and feature requests:** [open an issue](https://github.com/faablecloud/faable-auth-wordpress/issues)
+- **Security issues:** report them privately to [support@faable.com](mailto:support@faable.com),
+  not in a public issue
+
+## License
+
+[GPL-2.0-or-later](LICENSE) © Faable Cloud SLU
