@@ -89,8 +89,9 @@ A GitHub release must be tagged with the version (`v1.0.0`) and carry `faable-au
 ## Support
 
 - **Documentation:** [faable.com/docs](https://faable.com/docs)
-- **Help with your account or deployments:** [support@faable.com](mailto:support@faable.com) or the
-  [support page](https://faable.com/docs/platform/support)
+- **Community help, on every plan:** [GitHub Discussions](https://github.com/orgs/faablecloud/discussions)
+- **Help from the Faable team, on the Hobby and Pro plans:** [support@faable.com](mailto:support@faable.com).
+  See the [support page](https://faable.com/docs/platform/support)
 - **Bugs and feature requests:** [open an issue](https://github.com/faablecloud/faable-auth-wordpress/issues)
 - **Security issues:** report them privately to [support@faable.com](mailto:support@faable.com),
   not in a public issue
