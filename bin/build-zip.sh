@@ -17,6 +17,15 @@ if [ "${1:-}" = "--wporg" ]; then
   rm "$TMP/faable-auth/src/Updater.php"
   sed -i.bak "s/define( 'FAABLE_AUTH_DISTRIBUTION', 'github' );/define( 'FAABLE_AUTH_DISTRIBUTION', 'wporg' );/" "$TMP/faable-auth/faable-auth.php"
   rm "$TMP/faable-auth/faable-auth.php.bak"
+  # No updater of its own on wordpress.org (guideline 8): drop its loader and
+  # the GitHub line of External services, not only the file.
+  sed -i.bak '/wporg:strip-start/,/wporg:strip-end/d' "$TMP/faable-auth/faable-auth.php"
+  sed -i.bak '/^\* \*\*GitHub\*\*/d' "$TMP/faable-auth/readme.txt"
+  rm "$TMP/faable-auth/faable-auth.php.bak" "$TMP/faable-auth/readme.txt.bak"
+  if grep -qi "updater\|api.github.com" "$TMP/faable-auth/faable-auth.php" "$TMP/faable-auth/readme.txt"; then
+    echo "build-zip: the wordpress.org build still mentions the updater" >&2
+    exit 1
+  fi
   grep -q "'wporg'" "$TMP/faable-auth/faable-auth.php"
   NAME=faable-auth-wporg.zip
 else

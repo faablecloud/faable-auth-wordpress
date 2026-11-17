@@ -203,8 +203,9 @@ final class Login {
 		if ( '' !== $audience ) {
 			$params['audience'] = $audience;
 		}
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( ! empty( $_GET['prompt'] ) && 'select_account' === $_GET['prompt'] ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a hint for the tenant's login page, not a state change.
+		$prompt = isset( $_GET['prompt'] ) ? sanitize_key( wp_unslash( $_GET['prompt'] ) ) : '';
+		if ( 'select_account' === $prompt ) {
 			$params['prompt'] = 'select_account';
 		}
 		$params = apply_filters( 'faable_auth_authorize_params', $params );

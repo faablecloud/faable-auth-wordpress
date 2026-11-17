@@ -4,7 +4,7 @@ Tags: login, sso, openid connect, oidc, authentication
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -100,6 +100,10 @@ Faable terms of service: https://faable.com/docs/platform/terms-of-service — p
 Removing the plugin brings back the normal WordPress login. Users created by the plugin have no local password: each of them sets one with "Lost your password?".
 
 == Changelog ==
+
+= 1.1.3 =
+* The `prompt` parameter of the login link is sanitized before it is read.
+* The WordPress.org build only carries what runs on WordPress.org.
 
 = 1.1.2 =
 * Ready for the WordPress.org plugin directory: every file refuses direct access, the login button's emblem is escaped where it is printed, tested up to WordPress 7.1.
