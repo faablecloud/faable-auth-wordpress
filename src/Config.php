@@ -222,10 +222,26 @@ final class Config {
 
 	/**
 	 * The OIDC redirect URI. Fixed by the Connect contract: the dashboard
-	 * registers exactly this value.
+	 * registers `<connect_site_url()>/wp-login.php?faable-auth=callback`,
+	 * which is this value unless a plugin filters the login URL.
 	 */
 	public static function redirect_uri(): string {
-		return home_url( '/wp-login.php?faable-auth=callback' );
+		return add_query_arg( 'faable-auth', 'callback', wp_login_url() );
+	}
+
+	/**
+	 * Where Faable Auth sends the browser back after an RP-initiated logout.
+	 */
+	public static function logout_return_uri(): string {
+		return add_query_arg( 'loggedout', 'true', wp_login_url() );
+	}
+
+	/**
+	 * The site address sent to "Connect with Faable": the WordPress address
+	 * (where wp-login.php lives), not the front-end one, which may differ.
+	 */
+	public static function connect_site_url(): string {
+		return untrailingslashit( site_url() );
 	}
 
 	/**
@@ -295,7 +311,7 @@ final class Config {
 
 	/**
 	 * Whether to end the Faable Auth session on WordPress logout (RP-initiated
-	 * logout). Off by default: it requires `<home>/wp-login.php?loggedout=true`
+	 * logout). Off by default: it requires `logout_return_uri()`
 	 * to be registered in the client's logout URLs, or Faable Auth refuses it.
 	 */
 	public static function federated_logout(): bool {

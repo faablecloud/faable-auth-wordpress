@@ -526,7 +526,7 @@ final class Login {
 			array(
 				'id_token_hint'            => rawurlencode( $hint ),
 				'client_id'                => rawurlencode( Config::get( 'FAABLE_AUTH_CLIENT_ID' ) ),
-				'post_logout_redirect_uri' => rawurlencode( home_url( '/wp-login.php?loggedout=true' ) ),
+				'post_logout_redirect_uri' => rawurlencode( Config::logout_return_uri() ),
 			),
 			$end
 		);

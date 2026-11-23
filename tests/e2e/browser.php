@@ -389,5 +389,14 @@ foreach ( array( 'FAABLE_AUTH_MANAGED', 'FAABLE_AUTH_DOMAIN', 'FAABLE_AUTH_CLIEN
 	wp_cli( "config delete $c" );
 }
 
+// WordPress address != site address (WordPress in a subdirectory): the
+// callback and the logout return live where wp-login.php is, and Connect
+// sends that base, so `<site_url>/wp-login.php?faable-auth=callback` (what
+// the dashboard registers) is still the redirect URI.
+$u = explode( '|', wp_cli( "eval 'add_filter( \"option_home\", fn() => \"http://wp.test/front\" ); echo FaableAuth\\Config::redirect_uri(), \"|\", FaableAuth\\Config::logout_return_uri(), \"|\", FaableAuth\\Config::connect_site_url();'" ) );
+check( 'subdirectory install: callback under the WordPress address', WP . '/wp-login.php?faable-auth=callback' === ( $u[0] ?? '' ), implode( '|', $u ) );
+check( '... logout return too', WP . '/wp-login.php?loggedout=true' === ( $u[1] ?? '' ), implode( '|', $u ) );
+check( '... and Connect sends the base that matches the callback', ( $u[2] ?? '' ) . '/wp-login.php?faable-auth=callback' === ( $u[0] ?? '' ), implode( '|', $u ) );
+
 echo "\n$count checks, $fails failed\n";
 exit( $fails ? 1 : 0 );

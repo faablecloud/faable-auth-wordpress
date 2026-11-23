@@ -209,7 +209,7 @@ final class Admin {
 	public static function connect_redirect_url( string $state, string $challenge ): string {
 		return Config::connect_url() . '?' . http_build_query(
 			array(
-				'site_url'              => home_url(),
+				'site_url'              => Config::connect_site_url(),
 				'return_to'             => self::return_url(),
 				'state'                 => $state,
 				'code_challenge'        => $challenge,
@@ -590,7 +590,7 @@ final class Admin {
 				<h2><?php esc_html_e( 'Logout', 'faable-auth' ); ?></h2>
 				<label><input type="checkbox" name="faable_auth[federated_logout]" value="1" <?php checked( Config::federated_logout() ); ?> <?php disabled( Config::is_locked( 'FAABLE_AUTH_FEDERATED_LOGOUT' ) ); ?> />
 					<?php esc_html_e( 'Also end the Faable session on logout.', 'faable-auth' ); ?></label>
-				<p class="description"><?php esc_html_e( 'Requires this URL in the client\'s logout URLs:', 'faable-auth' ); ?> <code><?php echo esc_html( home_url( '/wp-login.php?loggedout=true' ) ); ?></code></p>
+				<p class="description"><?php esc_html_e( 'Requires this URL in the client\'s logout URLs:', 'faable-auth' ); ?> <code><?php echo esc_html( Config::logout_return_uri() ); ?></code></p>
 
 				<?php submit_button(); ?>
 			</form>

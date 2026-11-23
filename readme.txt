@@ -4,7 +4,7 @@ Tags: login, sso, openid connect, oidc, authentication
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.1.3
+Stable tag: 1.1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -49,9 +49,9 @@ If Faable Auth cannot be reached, nobody can log in. There are two ways in, and 
 
 Optional: `FAABLE_AUTH_ROLE_MAP` (JSON or `faable_role = wp_role` lines), `FAABLE_AUTH_AUDIENCE` (an API whose ID tokens include roles), `FAABLE_AUTH_REST_AUDIENCE`, `FAABLE_AUTH_REST_USER`, `FAABLE_AUTH_REST_CLIENTS`, `FAABLE_AUTH_REST_SCOPE` (machine-to-machine REST), `FAABLE_AUTH_FEDERATED_LOGOUT`. Each can also be a PHP constant in `wp-config.php`. A value set this way wins over the settings page and shows there read-only.
 
-**Anywhere else**, go to Settings → Faable Auth and press **Connect with Faable**. You log in to Faable, pick the project and the Auth tenant, and the site comes back connected. If you cannot use that, create a web client in your tenant with this redirect URI and paste the domain, client ID and secret in the manual section:
+**Anywhere else**, go to Settings → Faable Auth and press **Connect with Faable**. You log in to Faable, pick the project and the Auth tenant, and the site comes back connected. If you cannot use that, create a web client in your tenant with this redirect URI (the settings page shows it) and paste the domain, client ID and secret in the manual section:
 
-    https://<your-site>/wp-login.php?faable-auth=callback
+    https://<your-wordpress-address>/wp-login.php?faable-auth=callback
 
 Until the site is connected, the normal WordPress login stays on, so the administrator who connects it can log in.
 
@@ -100,6 +100,9 @@ Faable terms of service: https://faable.com/docs/platform/terms-of-service — p
 Removing the plugin brings back the normal WordPress login. Users created by the plugin have no local password: each of them sets one with "Lost your password?".
 
 == Changelog ==
+
+= 1.1.4 =
+* The login callback and the logout return URL follow the WordPress login URL, so sites whose WordPress address differs from the site address (WordPress in a subdirectory) work.
 
 = 1.1.3 =
 * The `prompt` parameter of the login link is sanitized before it is read.
